@@ -26,6 +26,9 @@ jobs:
       sh -c "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::="--force-confold" -y install sudo"
     displayName: 'Install Sudo in container'
   - script: |
+      sudo rm -rf $(ls -A1)
+    displayName: 'Clean Workspace'
+  - script: |
       sudo mkdir -p $HOME
       sudo chown $USER $HOME
       sudo apt-get update
