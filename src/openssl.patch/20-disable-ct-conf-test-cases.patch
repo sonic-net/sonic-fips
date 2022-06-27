@@ -1,0 +1,13 @@
+diff --git a/test/recipes/80-test_ssl_new.t b/test/recipes/80-test_ssl_new.t
+index 81d8f59a70..f8783f0469 100644
+--- a/test/recipes/80-test_ssl_new.t
++++ b/test/recipes/80-test_ssl_new.t
+@@ -82,7 +82,7 @@ my %skip = (
+                     && disabled("tls1_2")) || $no_npn,
+   "10-resumption.conf" => disabled("tls1_1") || disabled("tls1_2"),
+   "11-dtls_resumption.conf" => disabled("dtls1") || disabled("dtls1_2"),
+-  "12-ct.conf" => $no_tls || $no_ct || $no_ec,
++  "12-ct.conf" => 1,
+   # We could run some of these tests without TLS 1.2 if we had a per-test
+   # disable instruction but that's a bizarre configuration not worth
+   # special-casing for.

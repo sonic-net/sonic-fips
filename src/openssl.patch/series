@@ -1,1 +1,2 @@
 10-support-fips-mode.patch
+20-disable-ct-conf-test-cases.patch
