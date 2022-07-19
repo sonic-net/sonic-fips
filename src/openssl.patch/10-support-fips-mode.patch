@@ -161,23 +161,6 @@ index 1b0d523bea..31fbd42cd2 100644
  # ifndef OPENSSL_NO_STATIC_ENGINE
  #  if !defined(OPENSSL_NO_HW) && !defined(OPENSSL_NO_HW_PADLOCK)
      if ((opts & OPENSSL_INIT_ENGINE_PADLOCK)
-diff --git a/crypto/o_fips.c b/crypto/o_fips.c
-index 050ea9c216..6e9ffdb1d9 100644
---- a/crypto/o_fips.c
-+++ b/crypto/o_fips.c
-@@ -9,8 +9,12 @@
- 
- #include "internal/cryptlib.h"
- 
-+extern int g_fips_mode_enabled;
- int FIPS_mode(void)
- {
-+    if (g_fips_mode_enabled == 1){
-+        return g_fips_mode_enabled;
-+    }
-     /* This version of the library does not support FIPS mode. */
-     return 0;
- }
 diff --git a/crypto/engine/build.info b/crypto/engine/build.info
 index e00802a3fd..66bb39fa38 100644
 --- a/crypto/engine/build.info
