@@ -1,10 +1,3 @@
-Avoid-dangling-ptrs-in-header-and-data-params-for-PEM_rea.patch
-Add-a-test-for-CVE-2022-4450.patch
-CVE-2023-0286-Fix-GENERAL_NAME_cmp-for-x400Address-1.1.1.patch
-Fix-a-UAF-resulting-from-a-bug-in-BIO_new_NDEF.patch
-Fix-Timing-Oracle-in-RSA-decryption.patch
-Fix-AES-OCB-encrypt-decrypt-for-x86-AES-NI.patch
-AES-OCB-test-vectors.patch
 20-support-fips-test.patch
 30-disable-some-evppkey-tests-for-fips.patch
 40-disable-test-cases-with-fips-enabled.patch
