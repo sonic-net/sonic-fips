@@ -11,6 +11,9 @@ parameters:
   - name: arch
     type: string
     default: amd64
+  - name: image
+    type: string
+    default: publicmirror.azurecr.io/debian:bullseye
 
 jobs:
 - job:
@@ -18,7 +21,7 @@ jobs:
   timeoutInMinutes: 600
   pool: ${{ parameters.pool }}
   container:
-    image: debian:bullseye
+    image: ${{ parameters.image }}
     options:  "--name ci-container -v /usr/bin/docker:/tmp/docker:ro"
   steps:
   - script: |
@@ -29,9 +32,11 @@ jobs:
       sudo rm -rf $(ls -A1)
     displayName: 'Clean Workspace'
   - script: |
+      set -x
       sudo mkdir -p $HOME
       sudo chown $USER $HOME
       sudo apt-get update
+      sudo apt-get install -y git python3-pip
       sudo apt-get install -y cmake git make build-essential quilt debhelper bc python3 python3-pip sudo libssl-dev libgcc-10-dev
       sudo apt-get install -y clang
       sudo apt-get install -y openssl libssl-dev libssl1.1
@@ -50,25 +55,29 @@ jobs:
       sudo apt-get install -y ss-dev libldap2-dev libc6-dev libkeyutils-dev byacc docbook-to-man libsasl2-dev libverto-dev python3-cheetah python3-lxml doxygen doxygen-latex tex-gyre
 
       sudo pip3 install blurb
+
       mkdir -p $(Pipeline.Workspace)/target
     displayName: 'Install packages'
   - checkout: self
     submodules: true
   - script: |
       cd src/SymCrypt
-      git submodule update --init -- jitterentropy-library
+      git submodule update --init -- 3rdparty/jitterentropy-library
     displayName: 'Checkout Symcrypt submodules'
   - script: |
       set -ex
       sudo mkdir -p $HOME
       sudo pip3 install -r src/SymCrypt/scripts/requirements.txt
       ARCH=${{ parameters.arch }} make symcrypt
-      sudo dpkg -i target/symcrypt-openssl*.deb
+      if [ "${{ parameters.arch }}" != armhf ]; then
+        sudo dpkg -i target/symcrypt-openssl*.deb
+      fi
     displayName: 'Build and install symcrypt'
   - script: |
       set -ex
       ARCH=${{ parameters.arch }} make openssl
       sudo dpkg -i target/libssl*.deb target/openssl*.deb
+      sudo dpkg -i target/symcrypt-openssl*.deb
     displayName: 'Build and install openssl'
   - script: |
       set -ex
@@ -82,6 +91,7 @@ jobs:
 
       ARCH=${{ parameters.arch }} TARGET_PATH=target-test make openssl
       echo 0 | sudo tee /etc/fips/fips_enable
+    condition: ne('${{ parameters.arch }}', 'armhf')
     displayName: 'Test openssl with fips enabled'
  
   - script: |
