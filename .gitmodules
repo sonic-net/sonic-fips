@@ -16,7 +16,7 @@
 [submodule "src/golang"]
 	path = src/golang
 	url = https://pagure.io/go
-	branch = go1.15-openssl-fips
+	branch = go1.17-openssl-fips
 [submodule "src/golang-debian"]
 	path = src/golang-debian
 	url = https://salsa.debian.org/go-team/compiler/golang.git
