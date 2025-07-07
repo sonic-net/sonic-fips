@@ -28,7 +28,7 @@ jobs:
   pool: ${{ parameters.pool }}
   container:
     image: ${{ parameters.image }}
-    options:  "--name ci-container -v /usr/bin/docker:/tmp/docker:ro --ulimit nofile=1024:1048576"
+    options:  "--name ci-container -v /usr/bin/docker:/tmp/docker:ro"
   steps:
   - script: |
       /tmp/docker exec -t -u 0 ci-container \

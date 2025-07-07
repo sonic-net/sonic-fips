@@ -9,14 +9,14 @@ parameters:
     default: armhf
   - name: dist
     type: string
-    default: trixie
+    default: bookworm
 
 jobs:
 - template: build-template.yml
   parameters:
     pool: sonicbld-armhf
     arch: armhf
-    image: sonicdev-microsoft.azurecr.io/sonic-slave-trixie-armhf
+    image: sonicdev-microsoft.azurecr.io/sonic-slave-bookworm-armhf
     artifactNamePrefix: test-symcrypt-
     buildOthers: false
 - job: QemuTest
