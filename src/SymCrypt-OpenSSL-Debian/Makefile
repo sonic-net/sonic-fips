@@ -81,17 +81,5 @@ $(TARGET): $(DEPENDS)
 	ln -sf $(shell basename $(LIBSYMCRYPTENGINE)) $(INSTALL_PATH)/symcryptengine.so
 	ln -sf ../$(shell basename $(LIBSYMCRYPTENGINE)) $(ENGINES_PATH)/symcryptengine.so
 	cp -rf debian/* $(DEBIAN_DIR)/
-
-
-	# debug
-	whoami
-	ulimit -Hn
-	ulimit -Sn
-	fakeroot -v
-	tree -u -g -h $(BUILD_ROOT_DIR) 
-
-	ls -la $(INSTALL_PATH)
 	chmod a+r -R $(INSTALL_PATH)/
-	ls -la $(INSTALL_PATH)
-
-	fakeroot dpkg-deb --debug --verbose --build $(BUILD_ROOT_DIR) $(TARGET)
+	fakeroot dpkg-deb --build $(BUILD_ROOT_DIR) $(TARGET)

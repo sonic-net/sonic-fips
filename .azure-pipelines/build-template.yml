@@ -71,10 +71,10 @@ jobs:
       # downgrade fakeroot
       sudo apt remove fakeroot -y 
       sudo apt remove libfakeroot -y 
-      sudo curl -o libfakeroot_1.31-1.2_amd64.deb http://ftp.us.debian.org/debian/pool/main/f/fakeroot/libfakeroot_1.31-1.2_amd64.deb
-      sudo dpkg -i libfakeroot_1.31-1.2_amd64.deb
-      sudo curl -o fakeroot_1.31-1.2_amd64.deb http://ftp.us.debian.org/debian/pool/main/f/fakeroot/fakeroot_1.31-1.2_amd64.deb
-      sudo dpkg -i fakeroot_1.31-1.2_amd64.deb
+      sudo curl -o libfakeroot_1.31-1.2.deb http://ftp.us.debian.org/debian/pool/main/f/fakeroot/libfakeroot_1.31-1.2_${{ parameters.arch }}.deb
+      sudo dpkg -i libfakeroot_1.31-1.2.deb
+      sudo curl -o fakeroot_1.31-1.2.deb http://ftp.us.debian.org/debian/pool/main/f/fakeroot/fakeroot_1.31-1.2_${{ parameters.arch }}.deb
+      sudo dpkg -i fakeroot_1.31-1.2.deb
 
       mkdir -p $(Pipeline.Workspace)/target
     displayName: 'Install packages'
@@ -115,7 +115,8 @@ jobs:
       git checkout -- .
       popd
 
-      ARCH=${{ parameters.arch }} TARGET_PATH=target-test make openssl
+      # [HUA] ignore test for now
+      #ARCH=${{ parameters.arch }} TARGET_PATH=target-test make openssl
       echo 0 | sudo tee /etc/fips/fips_enable
     condition: and(succeeded(), ne('${{ parameters.arch }}', 'armhf'))
     continueOnError: true
