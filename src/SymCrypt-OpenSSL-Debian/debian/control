@@ -3,7 +3,7 @@ Version: 0.1
 Section: devel
 Priority: optional
 Architecture: all
-Depends: openssl (>=3.5)
+Depends: openssl (>=3.0)
 Maintainer: SONiC <sonic@microsoft.com>
 Description: symcrypt openssl
  Symcrypt Openssl Provider and engine.
