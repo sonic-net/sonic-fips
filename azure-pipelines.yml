@@ -31,7 +31,7 @@ stages:
     parameters:
       pool: sonicbld-armhf
       arch: armhf
-      image: sonicdev-microsoft.azurecr.io/sonic-slave-bookworm-armhf
+      image: sonicdev-microsoft.azurecr.io/sonic-slave-trixie-armhf
 - stage: test
   variables:
     CMAKE_BUILD_TYPE: Debug
