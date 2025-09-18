@@ -85,6 +85,8 @@ $(TARGET): $(DEPENDS)
 	# debug
 	whoami
 	ls -la $(INSTALL_PATH)
+    getfacl -R  $(INSTALL_PATH)
 	chmod a+r -R $(INSTALL_PATH)/
+    sudo chmod a+r -R $(INSTALL_PATH)/
 
 	fakeroot dpkg-deb --build $(BUILD_ROOT_DIR) $(TARGET)
