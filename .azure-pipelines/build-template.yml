@@ -65,6 +65,7 @@ jobs:
       sudo pip3 install --break-system-packages blurb
 
       sudo apt-get install -y tree
+      sudo apt-get install -y acl
 
       sudo apt install -f
 
