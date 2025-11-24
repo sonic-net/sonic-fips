@@ -2,10 +2,12 @@ diff --git a/crypto/init.c b/crypto/init.c
 index d8aaf13868..db07f629eb 100644
 --- a/crypto/init.c
 +++ b/crypto/init.c
-@@ -33,6 +33,7 @@
+@@ -33,8 +33,9 @@
  #include <openssl/cmp_util.h> /* for OSSL_CMP_log_close() */
  #include <openssl/trace.h>
+ #include <openssl/ssl.h> /* for OPENSSL_INIT_(NO_)?LOAD_SSL_STRINGS */
  #include "crypto/ctype.h"
+ #include "sslerr.h"
 +#include <openssl/provider.h>
  
  static int stopped = 0;
