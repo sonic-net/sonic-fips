@@ -7,7 +7,7 @@ Subject: [PATCH 3/3] Export remote info for authorization. authorization.
  auth.c    | 11 +++++++++++
  auth.h    |  3 +++
  session.c |  3 +++
- sshd.c    |  5 +++++
+ sshd-session.c | 3 +++
  4 files changed, 22 insertions(+)
 
 diff --git a/auth.c b/auth.c
@@ -58,20 +58,11 @@ index 768d3b3bb..40f3c4110 100644
  		/* record login, etc. similar to login(1) */
  #ifndef HAVE_OSF_SIA
  		do_login(ssh, s, command);
-diff --git a/sshd.c b/sshd.c
-index dd8fd94a3..8f184a372 100644
---- a/sshd.c
-+++ b/sshd.c
-@@ -1735,6 +1735,8 @@ main(int ac, char **av)
- 			test_flag = 2;
- 			break;
- 		case 'C':
-+			/* Export remote IP address and port for authorization. */
-+			export_remote_info(ssh);
- 			connection_info = get_connection_info(ssh, 0, 0);
- 			if (parse_server_match_testspec(connection_info,
- 			    optarg) == -1)
-@@ -2263,6 +2265,9 @@ main(int ac, char **av)
+diff --git a/sshd-session.c b/sshd-session.c
+index 2b6d2a98b..7ec1e3d97 100644
+--- a/sshd-session.c
++++ b/sshd-session.c
+@@ -1241,6 +1241,9 @@ main(int ac, char **av)
  	 */
  	remote_ip = ssh_remote_ipaddr(ssh);
  
@@ -81,6 +72,6 @@ index dd8fd94a3..8f184a372 100644
  #ifdef SSH_AUDIT_EVENTS
  	audit_connection_from(remote_ip, remote_port);
  #endif
--- 
+--
 2.43.0
 
