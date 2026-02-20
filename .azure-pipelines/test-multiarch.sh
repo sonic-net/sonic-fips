@@ -23,12 +23,6 @@ sudo mkdir -p /etc/fips
 echo 1 | sudo tee /etc/fips/fips_enable
 openssl engine -v | grep -i symcrypt
 
-# Cleanup OpenSSL source folder
-pushd src/openssl
-git clean -xdf
-git checkout -- .
-popd
-
 # Build the OpenSSL again with SymCrypt enabled
 rm -f src/openssl/test/recipes/30-test_afalg.t
 echo 40-Modify-tests-with-unsupported-behavior.patch >> src/openssl.patch/series

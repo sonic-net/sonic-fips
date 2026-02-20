@@ -103,10 +103,10 @@ diff --git a/test/evp_pkey_provided_test.c b/test/evp_pkey_provided_test.c
 index 1aabfef893b08..fb817f155f68f 100644
 --- a/test/evp_pkey_provided_test.c
 +++ b/test/evp_pkey_provided_test.c
-@@ -346,102 +346,102 @@ static int test_print_key_using_encoder_public(const char *alg,
+@@ -346,105 +346,105 @@ static int test_print_key_using_encoder_public(const char *alg,
  #define DQ      6
  #define QINV    7
- 
+
 -static int test_fromdata_rsa(void)
 -{
 -    int ret = 0, i;
@@ -150,7 +150,7 @@ index 1aabfef893b08..fb817f155f68f 100644
 -                                          fromdata_params), 1))
 -        goto err;
 -
--    while (dup_pk == NULL) {
+-    for (;;) {
 -        ret = 0;
 -        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
 -            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
@@ -178,7 +178,10 @@ index 1aabfef893b08..fb817f155f68f 100644
 -        ret = test_print_key_using_pem("RSA", pk)
 -              && test_print_key_using_encoder("RSA", pk);
 -
--        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+-        if (!ret || dup_pk != NULL)
+-            break;
+-
+-        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
 -            goto err;
 -        ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
 -        EVP_PKEY_free(pk);
@@ -203,102 +206,105 @@ index 1aabfef893b08..fb817f155f68f 100644
 -
 -    return ret;
 -}
-+// static int test_fromdata_rsa(void)
-+// {
-+//     int ret = 0, i;
-+//     EVP_PKEY_CTX *ctx = NULL, *key_ctx = NULL;
-+//     EVP_PKEY *pk = NULL, *copy_pk = NULL, *dup_pk = NULL;
-+//     /*
-+//      * 32-bit RSA key, extracted from this command,
-+//      * executed with OpenSSL 1.0.2:
-+//      *
-+//      * openssl genrsa 32 | openssl rsa -text
-+//      */
-+//     static unsigned long key_numbers[] = {
-+//         0xbc747fc5,              /* N */
-+//         0x10001,                 /* E */
-+//         0x7b133399,              /* D */
-+//         0xe963,                  /* P */
-+//         0xceb7,                  /* Q */
-+//         0x8599,                  /* DP */
-+//         0xbd87,                  /* DQ */
-+//         0xcc3b,                  /* QINV */
-+//     };
-+//     OSSL_PARAM fromdata_params[] = {
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_N, &key_numbers[N]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_E, &key_numbers[E]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_D, &key_numbers[D]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR1, &key_numbers[P]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR2, &key_numbers[Q]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT1, &key_numbers[DP]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT2, &key_numbers[DQ]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &key_numbers[QINV]),
-+//         OSSL_PARAM_END
-+//     };
-+//     BIGNUM *bn = BN_new();
-+//     BIGNUM *bn_from = BN_new();
-+
-+//     if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL)))
-+//         goto err;
-+
-+//     if (!TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)
-+//         || !TEST_int_eq(EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_KEYPAIR,
-+//                                           fromdata_params), 1))
-+//         goto err;
-+
-+//     while (dup_pk == NULL) {
-+//         ret = 0;
-+//         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
-+//             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
-+//             || !TEST_int_eq(EVP_PKEY_get_size(pk), 4)
-+//             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
-+//             goto err;
-+
-+//         EVP_PKEY_CTX_free(key_ctx);
-+//         if (!TEST_ptr(key_ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pk, "")))
-+//             goto err;
-+
-+//         if (!TEST_int_gt(EVP_PKEY_check(key_ctx), 0)
-+//             || !TEST_int_gt(EVP_PKEY_public_check(key_ctx), 0)
-+//             || !TEST_int_gt(EVP_PKEY_private_check(key_ctx), 0)
-+//             || !TEST_int_gt(EVP_PKEY_pairwise_check(key_ctx), 0))
-+//             goto err;
-+
-+//         /* EVP_PKEY_copy_parameters() should fail for RSA */
-+//         if (!TEST_ptr(copy_pk = EVP_PKEY_new())
-+//             || !TEST_false(EVP_PKEY_copy_parameters(copy_pk, pk)))
-+//             goto err;
-+//         EVP_PKEY_free(copy_pk);
-+//         copy_pk = NULL;
-+
-+//         ret = test_print_key_using_pem("RSA", pk)
-+//               && test_print_key_using_encoder("RSA", pk);
-+
-+//         if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
-+//             goto err;
-+//         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
-+//         EVP_PKEY_free(pk);
-+//         pk = dup_pk;
-+//         if (!ret)
-+//             goto err;
-+//     }
-+//  err:
-+//     /* for better diagnostics always compare key params */
-+//     for (i = 0; fromdata_params[i].key != NULL; ++i) {
-+//         if (!TEST_true(BN_set_word(bn_from, key_numbers[i]))
-+//             || !TEST_true(EVP_PKEY_get_bn_param(pk, fromdata_params[i].key, &bn))
-+//             || !TEST_BN_eq(bn, bn_from))
-+//             ret = 0;
-+//     }
-+//     BN_free(bn_from);
-+//     BN_free(bn);
-+//     EVP_PKEY_free(pk);
-+//     EVP_PKEY_free(copy_pk);
-+//     EVP_PKEY_CTX_free(key_ctx);
-+//     EVP_PKEY_CTX_free(ctx);
-+
-+//     return ret;
-+// }
++//static int test_fromdata_rsa(void)
++//{
++//    int ret = 0, i;
++//    EVP_PKEY_CTX *ctx = NULL, *key_ctx = NULL;
++//    EVP_PKEY *pk = NULL, *copy_pk = NULL, *dup_pk = NULL;
++//    /*
++//     * 32-bit RSA key, extracted from this command,
++//     * executed with OpenSSL 1.0.2:
++//     *
++//     * openssl genrsa 32 | openssl rsa -text
++//     */
++//    static unsigned long key_numbers[] = {
++//        0xbc747fc5,              /* N */
++//        0x10001,                 /* E */
++//        0x7b133399,              /* D */
++//        0xe963,                  /* P */
++//        0xceb7,                  /* Q */
++//        0x8599,                  /* DP */
++//        0xbd87,                  /* DQ */
++//        0xcc3b,                  /* QINV */
++//    };
++//    OSSL_PARAM fromdata_params[] = {
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_N, &key_numbers[N]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_E, &key_numbers[E]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_D, &key_numbers[D]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR1, &key_numbers[P]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR2, &key_numbers[Q]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT1, &key_numbers[DP]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT2, &key_numbers[DQ]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &key_numbers[QINV]),
++//        OSSL_PARAM_END
++//    };
++//    BIGNUM *bn = BN_new();
++//    BIGNUM *bn_from = BN_new();
++//
++//    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL)))
++//        goto err;
++//
++//    if (!TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)
++//        || !TEST_int_eq(EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_KEYPAIR,
++//                                          fromdata_params), 1))
++//        goto err;
++//
++//    for (;;) {
++//        ret = 0;
++//        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
++//            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
++//            || !TEST_int_eq(EVP_PKEY_get_size(pk), 4)
++//            || !TEST_false(EVP_PKEY_missing_parameters(pk)))
++//            goto err;
++//
++//        EVP_PKEY_CTX_free(key_ctx);
++//        if (!TEST_ptr(key_ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pk, "")))
++//            goto err;
++//
++//        if (!TEST_int_gt(EVP_PKEY_check(key_ctx), 0)
++//            || !TEST_int_gt(EVP_PKEY_public_check(key_ctx), 0)
++//            || !TEST_int_gt(EVP_PKEY_private_check(key_ctx), 0)
++//            || !TEST_int_gt(EVP_PKEY_pairwise_check(key_ctx), 0))
++//            goto err;
++//
++//        /* EVP_PKEY_copy_parameters() should fail for RSA */
++//        if (!TEST_ptr(copy_pk = EVP_PKEY_new())
++//            || !TEST_false(EVP_PKEY_copy_parameters(copy_pk, pk)))
++//            goto err;
++//        EVP_PKEY_free(copy_pk);
++//        copy_pk = NULL;
++//
++//        ret = test_print_key_using_pem("RSA", pk)
++//              && test_print_key_using_encoder("RSA", pk);
++//
++//        if (!ret || dup_pk != NULL)
++//            break;
++//
++//        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
++//            goto err;
++//        ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
++//        EVP_PKEY_free(pk);
++//        pk = dup_pk;
++//        if (!ret)
++//            goto err;
++//    }
++// err:
++//    /* for better diagnostics always compare key params */
++//    for (i = 0; fromdata_params[i].key != NULL; ++i) {
++//        if (!TEST_true(BN_set_word(bn_from, key_numbers[i]))
++//            || !TEST_true(EVP_PKEY_get_bn_param(pk, fromdata_params[i].key, &bn))
++//            || !TEST_BN_eq(bn, bn_from))
++//            ret = 0;
++//    }
++//    BN_free(bn_from);
++//    BN_free(bn);
++//    EVP_PKEY_free(pk);
++//    EVP_PKEY_free(copy_pk);
++//    EVP_PKEY_CTX_free(key_ctx);
++//    EVP_PKEY_CTX_free(ctx);
++//
++//    return ret;
++//}
  
  static int test_evp_pkey_get_bn_param_large(void)
  {

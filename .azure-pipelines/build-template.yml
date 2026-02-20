@@ -62,6 +62,9 @@ jobs:
 
       sudo pip3 install --break-system-packages blurb
 
+      # Install dget for download debian package source code
+      sudo apt-get install -y devscripts
+
       mkdir -p $(Pipeline.Workspace)/target
     displayName: 'Install packages'
   - checkout: self
@@ -96,10 +99,6 @@ jobs:
       echo 40-Modify-tests-with-unsupported-behavior.patch >> src/openssl.patch/series
       openssl engine -v | grep -i symcrypt
       openssl list --providers | grep -i symcrypt
-      pushd src/openssl
-      git clean -xdf
-      git checkout -- .
-      popd
 
       ARCH=${{ parameters.arch }} TARGET_PATH=target-test make openssl
       echo 0 | sudo tee /etc/fips/fips_enable

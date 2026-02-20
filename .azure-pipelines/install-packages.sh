@@ -12,6 +12,9 @@ sudo apt-get install -y dh-exec dh-runit libaudit-dev libedit-dev libfido2-dev l
 sudo apt-get install -y libwrap0-dev pkg-config
 sudo apt-get install -y libpam-dev libselinux1-dev libsystemd-dev libwrap0-dev
 
+# Install dget for download debian package source code
+sudo apt-get install -y devscripts
+
 # Build Golang
 sudo apt-get install -y golang
 
