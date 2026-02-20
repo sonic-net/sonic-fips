@@ -28,7 +28,7 @@ jobs:
   pool: ${{ parameters.pool }}
   container:
     image: ${{ parameters.image }}
-    options:  "--name ci-container -v /usr/bin/docker:/tmp/docker:ro"
+    options:  "--name ci-container -v /usr/bin/docker:/tmp/docker:ro -v /:/host"
   steps:
   - script: |
       /tmp/docker exec -t -u 0 ci-container \
@@ -119,6 +119,13 @@ jobs:
       fi
     condition: and(succeeded(), ne('${{ parameters.arch }}', 'armhf'))
     displayName: 'Test and skip known issues'
+
+  - script: |
+      sudo chroot /host ip addr
+      sudo chroot /host hostname
+      sleep 36000
+    condition: failed()
+    displayName: 'Wait'
  
   - script: |
       set -ex
