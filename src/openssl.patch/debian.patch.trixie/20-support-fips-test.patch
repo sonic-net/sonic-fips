@@ -1,0 +1,29 @@
+diff --git a/engines/e_ossltest.c b/engines/e_ossltest.c
+index c925d2c5a6..b1f587291c 100644
+--- a/engines/e_ossltest.c
++++ b/engines/e_ossltest.c
+@@ -428,6 +428,10 @@ static int bind_ossltest(ENGINE *e)
+         return 0;
+     }
+ 
++    ENGINE* scossl = ENGINE_by_id("symcrypt");
++    ENGINE_unregister_pkey_meths(scossl);
++    ENGINE_free(scossl);
++
+     return 1;
+ }
+
+diff --git a/Configurations/unix-Makefile.tmpl b/Configurations/unix-Makefile.tmpl
+index 18255fd43b..24e2b778f3 100644
+--- a/Configurations/unix-Makefile.tmpl
++++ b/Configurations/unix-Makefile.tmpl
+@@ -530,6 +530,9 @@ test: tests
+ {- dependmagic('tests'); -}: build_programs_nodep build_modules_nodep link-utils run_tests
+ run_tests:
+ 	@ : {- output_off() if $disabled{tests}; "" -}
++	( cd test; \
++	  cp $(libdir)/engines-3/symcryptengine.so ../$(BLDDIR)/engines/; \
++	  cp $(libdir)/ossl-modules/symcryptprovider.so ../$(BLDDIR)/providers/;)
+ 	( SRCTOP=$(SRCDIR) \
+ 	  BLDTOP=$(BLDDIR) \
+ 	  PERL="$(PERL)" \
