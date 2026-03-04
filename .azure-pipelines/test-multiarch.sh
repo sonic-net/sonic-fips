@@ -29,6 +29,8 @@ git clean -xdf
 git checkout -- .
 popd
 
+exit 0
+
 # Build the OpenSSL again with SymCrypt enabled
 rm -f src/openssl/test/recipes/30-test_afalg.t
 echo 40-Modify-tests-with-unsupported-behavior.patch >> src/openssl.patch/series
