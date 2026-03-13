@@ -1,12 +1,12 @@
 diff --git a/src/crypto/internal/backend/hostfips.go b/src/crypto/internal/backend/hostfips.go
-index aa21cd4db9..6b3bccdc13 100644
+index aa21cd4db9..0ef1a4dbf0 100644
 --- a/src/crypto/internal/backend/hostfips.go
 +++ b/src/crypto/internal/backend/hostfips.go
 @@ -7,6 +7,7 @@ package backend
  import (
  	"fmt"
  	"os"
-+	"bufio"
++	"strings"
  )
  
  func hostFIPSModeEnabled() bool {
@@ -28,7 +28,7 @@ index aa21cd4db9..6b3bccdc13 100644
 +		os.Exit(1)
 +	}
 +	dataString := string(data[:])
-+	return string.Contains(dataString, "sonic_fips=1")
++	return strings.Contains(dataString, "sonic_fips=1")
  }
 diff --git a/src/vendor/github.com/golang-fips/openssl/v2/init.go b/src/vendor/github.com/golang-fips/openssl/v2/init.go
 index a14663298b..490c6cc361 100644
