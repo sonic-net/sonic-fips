@@ -59,7 +59,7 @@ jobs:
       sudo apt-get install -y time net-tools xvfb systemtap-sdt-dev python3-sphinx python3-docs-theme texinfo liblmdb-dev
 
       # Build krb5
-      sudo apt-get install -y ss-dev libldap2-dev libc6-dev libkeyutils-dev byacc docbook-to-man libsasl2-dev libverto-dev python3-cheetah python3-lxml doxygen doxygen-latex tex-gyre
+      sudo apt-get install -y ss-dev libldap2-dev libc6-dev libkeyutils-dev keyutils byacc docbook-to-man libsasl2-dev libverto-dev python3-cheetah python3-lxml doxygen doxygen-latex tex-gyre
 
       sudo pip3 install --break-system-packages blurb
 
