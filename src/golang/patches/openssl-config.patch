@@ -1,5 +1,37 @@
+diff --git a/src/crypto/internal/backend/hostfips.go b/src/crypto/internal/backend/hostfips.go
+index aa21cd4db9..6b3bccdc13 100644
+--- a/src/crypto/internal/backend/hostfips.go
++++ b/src/crypto/internal/backend/hostfips.go
+@@ -7,6 +7,7 @@ package backend
+ import (
+ 	"fmt"
+ 	"os"
++	"bufio"
+ )
+ 
+ func hostFIPSModeEnabled() bool {
+@@ -21,5 +22,18 @@ func hostFIPSModeEnabled() bool {
+ 		fmt.Fprintf(os.Stderr, "error reading /proc/sys/crypto/fips_enabled: %v\n", err)
+ 		os.Exit(1)
+ 	}
+-	return len(data) > 0 && data[0] == '1'
++	if len(data) > 0 && data[0] == '1' {
++		return true
++	}
++
++	data, err := os.ReadFile("/proc/cmdline")
++	if err != nil {
++		if os.IsNotExist(err) {
++			return false
++		}
++		fmt.Fprintf(os.Stderr, "error reading /proc/cmdline: %v\n", err)
++		os.Exit(1)
++	}
++	dataString := string(data[:])
++	return string.Contains(dataString, "sonic_fips=1")
+ }
 diff --git a/src/vendor/github.com/golang-fips/openssl/v2/init.go b/src/vendor/github.com/golang-fips/openssl/v2/init.go
-index a146632..85b4ed5 100644
+index a14663298b..490c6cc361 100644
 --- a/src/vendor/github.com/golang-fips/openssl/v2/init.go
 +++ b/src/vendor/github.com/golang-fips/openssl/v2/init.go
 @@ -47,7 +47,7 @@ func opensslInit(file string) (major, minor, patch uint, err error) {
@@ -11,4 +43,16 @@ index a146632..85b4ed5 100644
  	if major == 1 && minor == 0 {
  		if C.go_openssl_thread_setup() != 1 {
  			return 0, 0, 0, fail("openssl: thread setup")
--- 
+diff --git a/src/vendor/github.com/golang-fips/openssl/v2/openssl.go b/src/vendor/github.com/golang-fips/openssl/v2/openssl.go
+index 1562cee268..7247314a4d 100644
+--- a/src/vendor/github.com/golang-fips/openssl/v2/openssl.go
++++ b/src/vendor/github.com/golang-fips/openssl/v2/openssl.go
+@@ -94,7 +94,7 @@ func VersionText() string {
+ }
+ 
+ var (
+-	providerNameFips    = C.CString("fips")
++	providerNameFips    = C.CString("symcryptprovider")
+ 	providerNameDefault = C.CString("default")
+ )
+ 
