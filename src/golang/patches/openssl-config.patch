@@ -1,5 +1,5 @@
 diff --git a/src/crypto/internal/backend/hostfips.go b/src/crypto/internal/backend/hostfips.go
-index aa21cd4db9..0ef1a4dbf0 100644
+index aa21cd4db9..3224482bc9 100644
 --- a/src/crypto/internal/backend/hostfips.go
 +++ b/src/crypto/internal/backend/hostfips.go
 @@ -7,6 +7,7 @@ package backend
@@ -19,7 +19,7 @@ index aa21cd4db9..0ef1a4dbf0 100644
 +		return true
 +	}
 +
-+	data, err := os.ReadFile("/proc/cmdline")
++	data, err = os.ReadFile("/proc/cmdline")
 +	if err != nil {
 +		if os.IsNotExist(err) {
 +			return false
