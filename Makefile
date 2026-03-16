@@ -9,10 +9,6 @@ TARGET_PATH ?= target
 ROOT := $(shell pwd)
 DEST = $(ROOT)/$(TARGET_PATH)
 
-SYMCRYPT_OPENSSL := target/symcrypt-openssl_0.1_$(ARCH).deb
-OPENSSH := target/ssh_8.4p1-5+fips_all.deb
-GOLANG := target/golang-1.15-go_1.15.15-1~deb11u2+fips_$(ARCH).deb
-PYTHON := target/python3.9_3.9.2-1+fips_$(ARCH).deb
 QUILT_REFRESH_ARGS="-p ab --no-timestamps --no-index"
 .SECONDEXPANSION:
 
@@ -24,7 +20,6 @@ export QUILT_REFRESH_ARGS
 export ARCH
 export DEST
 
-DEPNEDS := $(SYMCRYPT_OPENSSL) $(OPENSSH) $(GOLANG) $(PYTHON)
 MAIN_TARGET_LIST = $(addprefix $(TARGET_PATH)/, $(MAIN_TARGETS))
 
 all: $(MAIN_TARGET_LIST)

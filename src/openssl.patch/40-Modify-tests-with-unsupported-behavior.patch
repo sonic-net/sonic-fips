@@ -77,15 +77,15 @@ index bab8da1cb8dfe..6ec07bc14b590 100644
  
      EVP_KDF_CTX_free(kctx);
      OPENSSL_free(params);
-@@ -274,9 +275,9 @@ static int do_kdf_hkdf_gettables(int expand_only, int has_digest)
+@@ -274,9 +274,9 @@ static int do_kdf_hkdf_gettables(int expand_only, int has_digest)
      }
  
-     /* Get params returns -2 if an unsupported parameter is requested */
+     /* Get params returns 1 if an unsupported parameter is requested */
 -    params_get[0] = OSSL_PARAM_construct_end();
--    if (!TEST_int_eq(EVP_KDF_CTX_get_params(kctx, params_get), -2))
+-    if (!TEST_int_eq(EVP_KDF_CTX_get_params(kctx, params_get), 1))
 -        goto err;
 +    // params_get[0] = OSSL_PARAM_construct_end();
-+    // if (!TEST_int_eq(EVP_KDF_CTX_get_params(kctx, params_get), -2))
++    // if (!TEST_int_eq(EVP_KDF_CTX_get_params(kctx, params_get), 1))
 +    //     goto err;
      ret = 1;
  err:
@@ -100,10 +100,10 @@ index bab8da1cb8dfe..6ec07bc14b590 100644
      EVP_KDF_CTX_free(kctx);
      OPENSSL_free(params);
 diff --git a/test/evp_pkey_provided_test.c b/test/evp_pkey_provided_test.c
-index 1aabfef893b08..fb817f155f68f 100644
+index a51a4a3c07..20328bb6e3 100644
 --- a/test/evp_pkey_provided_test.c
 +++ b/test/evp_pkey_provided_test.c
-@@ -346,102 +346,102 @@ static int test_print_key_using_encoder_public(const char *alg,
+@@ -346,106 +346,106 @@ static int test_print_key_using_encoder_public(const char *alg,
  #define DQ      6
  #define QINV    7
  
@@ -150,7 +150,7 @@ index 1aabfef893b08..fb817f155f68f 100644
 -                                          fromdata_params), 1))
 -        goto err;
 -
--    while (dup_pk == NULL) {
+-    for (;;) {
 -        ret = 0;
 -        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
 -            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
@@ -178,7 +178,10 @@ index 1aabfef893b08..fb817f155f68f 100644
 -        ret = test_print_key_using_pem("RSA", pk)
 -              && test_print_key_using_encoder("RSA", pk);
 -
--        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+-        if (!ret || dup_pk != NULL)
+-            break;
+-
+-        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
 -            goto err;
 -        ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
 -        EVP_PKEY_free(pk);
@@ -190,7 +193,8 @@ index 1aabfef893b08..fb817f155f68f 100644
 -    /* for better diagnostics always compare key params */
 -    for (i = 0; fromdata_params[i].key != NULL; ++i) {
 -        if (!TEST_true(BN_set_word(bn_from, key_numbers[i]))
--            || !TEST_true(EVP_PKEY_get_bn_param(pk, fromdata_params[i].key, &bn))
+-            || !TEST_true(EVP_PKEY_get_bn_param(pk, fromdata_params[i].key,
+-                                                &bn))
 -            || !TEST_BN_eq(bn, bn_from))
 -            ret = 0;
 -    }
@@ -203,139 +207,143 @@ index 1aabfef893b08..fb817f155f68f 100644
 -
 -    return ret;
 -}
-+// static int test_fromdata_rsa(void)
-+// {
-+//     int ret = 0, i;
-+//     EVP_PKEY_CTX *ctx = NULL, *key_ctx = NULL;
-+//     EVP_PKEY *pk = NULL, *copy_pk = NULL, *dup_pk = NULL;
-+//     /*
-+//      * 32-bit RSA key, extracted from this command,
-+//      * executed with OpenSSL 1.0.2:
-+//      *
-+//      * openssl genrsa 32 | openssl rsa -text
-+//      */
-+//     static unsigned long key_numbers[] = {
-+//         0xbc747fc5,              /* N */
-+//         0x10001,                 /* E */
-+//         0x7b133399,              /* D */
-+//         0xe963,                  /* P */
-+//         0xceb7,                  /* Q */
-+//         0x8599,                  /* DP */
-+//         0xbd87,                  /* DQ */
-+//         0xcc3b,                  /* QINV */
-+//     };
-+//     OSSL_PARAM fromdata_params[] = {
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_N, &key_numbers[N]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_E, &key_numbers[E]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_D, &key_numbers[D]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR1, &key_numbers[P]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR2, &key_numbers[Q]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT1, &key_numbers[DP]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT2, &key_numbers[DQ]),
-+//         OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &key_numbers[QINV]),
-+//         OSSL_PARAM_END
-+//     };
-+//     BIGNUM *bn = BN_new();
-+//     BIGNUM *bn_from = BN_new();
-+
-+//     if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL)))
-+//         goto err;
-+
-+//     if (!TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)
-+//         || !TEST_int_eq(EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_KEYPAIR,
-+//                                           fromdata_params), 1))
-+//         goto err;
-+
-+//     while (dup_pk == NULL) {
-+//         ret = 0;
-+//         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
-+//             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
-+//             || !TEST_int_eq(EVP_PKEY_get_size(pk), 4)
-+//             || !TEST_false(EVP_PKEY_missing_parameters(pk)))
-+//             goto err;
-+
-+//         EVP_PKEY_CTX_free(key_ctx);
-+//         if (!TEST_ptr(key_ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pk, "")))
-+//             goto err;
-+
-+//         if (!TEST_int_gt(EVP_PKEY_check(key_ctx), 0)
-+//             || !TEST_int_gt(EVP_PKEY_public_check(key_ctx), 0)
-+//             || !TEST_int_gt(EVP_PKEY_private_check(key_ctx), 0)
-+//             || !TEST_int_gt(EVP_PKEY_pairwise_check(key_ctx), 0))
-+//             goto err;
-+
-+//         /* EVP_PKEY_copy_parameters() should fail for RSA */
-+//         if (!TEST_ptr(copy_pk = EVP_PKEY_new())
-+//             || !TEST_false(EVP_PKEY_copy_parameters(copy_pk, pk)))
-+//             goto err;
-+//         EVP_PKEY_free(copy_pk);
-+//         copy_pk = NULL;
-+
-+//         ret = test_print_key_using_pem("RSA", pk)
-+//               && test_print_key_using_encoder("RSA", pk);
-+
-+//         if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
-+//             goto err;
-+//         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
-+//         EVP_PKEY_free(pk);
-+//         pk = dup_pk;
-+//         if (!ret)
-+//             goto err;
-+//     }
-+//  err:
-+//     /* for better diagnostics always compare key params */
-+//     for (i = 0; fromdata_params[i].key != NULL; ++i) {
-+//         if (!TEST_true(BN_set_word(bn_from, key_numbers[i]))
-+//             || !TEST_true(EVP_PKEY_get_bn_param(pk, fromdata_params[i].key, &bn))
-+//             || !TEST_BN_eq(bn, bn_from))
-+//             ret = 0;
-+//     }
-+//     BN_free(bn_from);
-+//     BN_free(bn);
-+//     EVP_PKEY_free(pk);
-+//     EVP_PKEY_free(copy_pk);
-+//     EVP_PKEY_CTX_free(key_ctx);
-+//     EVP_PKEY_CTX_free(ctx);
-+
-+//     return ret;
-+// }
++//static int test_fromdata_rsa(void)
++//{
++//    int ret = 0, i;
++//    EVP_PKEY_CTX *ctx = NULL, *key_ctx = NULL;
++//    EVP_PKEY *pk = NULL, *copy_pk = NULL, *dup_pk = NULL;
++//    /*
++//     * 32-bit RSA key, extracted from this command,
++//     * executed with OpenSSL 1.0.2:
++//     *
++//     * openssl genrsa 32 | openssl rsa -text
++//     */
++//    static unsigned long key_numbers[] = {
++//        0xbc747fc5,              /* N */
++//        0x10001,                 /* E */
++//        0x7b133399,              /* D */
++//        0xe963,                  /* P */
++//        0xceb7,                  /* Q */
++//        0x8599,                  /* DP */
++//        0xbd87,                  /* DQ */
++//        0xcc3b,                  /* QINV */
++//    };
++//    OSSL_PARAM fromdata_params[] = {
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_N, &key_numbers[N]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_E, &key_numbers[E]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_D, &key_numbers[D]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR1, &key_numbers[P]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_FACTOR2, &key_numbers[Q]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT1, &key_numbers[DP]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_EXPONENT2, &key_numbers[DQ]),
++//        OSSL_PARAM_ulong(OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &key_numbers[QINV]),
++//        OSSL_PARAM_END
++//    };
++//    BIGNUM *bn = BN_new();
++//    BIGNUM *bn_from = BN_new();
++//
++//    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL)))
++//        goto err;
++//
++//    if (!TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)
++//        || !TEST_int_eq(EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_KEYPAIR,
++//                                          fromdata_params), 1))
++//        goto err;
++//
++//    for (;;) {
++//        ret = 0;
++//        if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
++//            || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
++//            || !TEST_int_eq(EVP_PKEY_get_size(pk), 4)
++//            || !TEST_false(EVP_PKEY_missing_parameters(pk)))
++//            goto err;
++//
++//        EVP_PKEY_CTX_free(key_ctx);
++//        if (!TEST_ptr(key_ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pk, "")))
++//            goto err;
++//
++//        if (!TEST_int_gt(EVP_PKEY_check(key_ctx), 0)
++//            || !TEST_int_gt(EVP_PKEY_public_check(key_ctx), 0)
++//            || !TEST_int_gt(EVP_PKEY_private_check(key_ctx), 0)
++//            || !TEST_int_gt(EVP_PKEY_pairwise_check(key_ctx), 0))
++//            goto err;
++//
++//        /* EVP_PKEY_copy_parameters() should fail for RSA */
++//        if (!TEST_ptr(copy_pk = EVP_PKEY_new())
++//            || !TEST_false(EVP_PKEY_copy_parameters(copy_pk, pk)))
++//            goto err;
++//        EVP_PKEY_free(copy_pk);
++//        copy_pk = NULL;
++//
++//        ret = test_print_key_using_pem("RSA", pk)
++//              && test_print_key_using_encoder("RSA", pk);
++//
++//        if (!ret || dup_pk != NULL)
++//            break;
++//
++//        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
++//            goto err;
++//        ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
++//        EVP_PKEY_free(pk);
++//        pk = dup_pk;
++//        if (!ret)
++//            goto err;
++//    }
++// err:
++//    /* for better diagnostics always compare key params */
++//    for (i = 0; fromdata_params[i].key != NULL; ++i) {
++//        if (!TEST_true(BN_set_word(bn_from, key_numbers[i]))
++//            || !TEST_true(EVP_PKEY_get_bn_param(pk, fromdata_params[i].key,
++//                                                &bn))
++//            || !TEST_BN_eq(bn, bn_from))
++//            ret = 0;
++//    }
++//    BN_free(bn_from);
++//    BN_free(bn);
++//    EVP_PKEY_free(pk);
++//    EVP_PKEY_free(copy_pk);
++//    EVP_PKEY_CTX_free(key_ctx);
++//    EVP_PKEY_CTX_free(ctx);
++//
++//    return ret;
++//}
  
- static int test_evp_pkey_get_bn_param_large(void)
- {
-@@ -679,8 +679,8 @@ static int test_fromdata_dh_named_group(void)
+ struct check_data {
+     const char *pname;
+@@ -1077,8 +1077,8 @@ static int test_fromdata_dh_named_group(void)
          EVP_PKEY_free(copy_pk);
          copy_pk = NULL;
  
 -        ret = test_print_key_using_pem("DH", pk)
 -              && test_print_key_using_encoder("DH", pk);
 +        ret = test_print_key_using_pem("DH", pk);
-+            //   && test_print_key_using_encoder("DH", pk);
++//              && test_print_key_using_encoder("DH", pk);
  
-         if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
-             goto err;
-@@ -854,8 +854,8 @@ static int test_fromdata_dh_fips186_4(void)
+         if (!ret || dup_pk != NULL)
+             break;
+@@ -1255,8 +1255,8 @@ static int test_fromdata_dh_fips186_4(void)
          EVP_PKEY_CTX_free(key_ctx);
          key_ctx = NULL;
  
 -        ret = test_print_key_using_pem("DH", pk)
 -              && test_print_key_using_encoder("DH", pk);
 +        ret = test_print_key_using_pem("DH", pk);
-+            //   && test_print_key_using_encoder("DH", pk);
++//              && test_print_key_using_encoder("DH", pk);
  
-         if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
-             goto err;
-@@ -1136,8 +1136,8 @@ static int test_fromdata_ecx(int tst)
+         if (!ret || dup_pk != NULL)
+             break;
+@@ -1547,8 +1547,8 @@ static int test_fromdata_ecx(int tst)
          if (tst > 7)
              ret = test_print_key_using_encoder_public(alg, pk);
          else
 -            ret = test_print_key_using_pem(alg, pk)
 -                  && test_print_key_using_encoder(alg, pk);
 +            ret = test_print_key_using_pem(alg, pk);
-+                //   && test_print_key_using_encoder(alg, pk);
++//                  && test_print_key_using_encoder(alg, pk);
  
-         if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
-             goto err;
-@@ -1260,7 +1260,7 @@ static int test_fromdata_ec(void)
+         if (!ret || dup_pk != NULL)
+             break;
+@@ -1675,7 +1675,7 @@ static int test_fromdata_ec(void)
          ret = 0;
          if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 256)
              || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 128)
@@ -344,7 +352,7 @@ index 1aabfef893b08..fb817f155f68f 100644
              || !TEST_false(EVP_PKEY_missing_parameters(pk)))
              goto err;
  
-@@ -1286,14 +1286,14 @@ static int test_fromdata_ec(void)
+@@ -1701,14 +1701,14 @@ static int test_fromdata_ec(void)
              || !TEST_true(EC_GROUP_get_curve(group, group_p, group_a, group_b, NULL)))
              goto err;
  
@@ -352,32 +360,32 @@ index 1aabfef893b08..fb817f155f68f 100644
 -            || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_B, &b))
 -            || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_P, &p)))
 -            goto err;
-+        // if (!TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_A, &a))
-+        //     || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_B, &b))
-+        //     || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_P, &p)))
-+        //     goto err;
++//        if (!TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_A, &a))
++//            || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_B, &b))
++//            || !TEST_true(EVP_PKEY_get_bn_param(pk, OSSL_PKEY_PARAM_EC_P, &p)))
++//            goto err;
  
 -        if (!TEST_BN_eq(group_p, p) || !TEST_BN_eq(group_a, a)
 -            || !TEST_BN_eq(group_b, b))
 -            goto err;
-+        // if (!TEST_BN_eq(group_p, p) || !TEST_BN_eq(group_a, a)
-+        //     || !TEST_BN_eq(group_b, b))
-+        //     goto err;
++//        if (!TEST_BN_eq(group_p, p) || !TEST_BN_eq(group_a, a)
++//            || !TEST_BN_eq(group_b, b))
++//            goto err;
  
-         if (!EVP_PKEY_get_utf8_string_param(pk, OSSL_PKEY_PARAM_GROUP_NAME,
-                                             out_curve_name,
-@@ -1320,8 +1320,8 @@ static int test_fromdata_ec(void)
+         EC_GROUP_free(group);
+         group = NULL;
+@@ -1744,8 +1744,8 @@ static int test_fromdata_ec(void)
          BN_free(bn_priv);
          bn_priv = NULL;
  
 -        ret = test_print_key_using_pem(alg, pk)
 -              && test_print_key_using_encoder(alg, pk);
 +        ret = test_print_key_using_pem(alg, pk);
-+            //   && test_print_key_using_encoder(alg, pk);
++//              && test_print_key_using_encoder(alg, pk);
  
-         if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
-             goto err;
-@@ -1703,51 +1703,51 @@ static int test_check_dsa(void)
+         if (!ret || dup_pk != NULL)
+             break;
+@@ -2133,52 +2133,52 @@ static int test_check_dsa(void)
  #endif /* OPENSSL_NO_DSA */
  
  
@@ -398,28 +406,14 @@ index 1aabfef893b08..fb817f155f68f 100644
 -
 -    return params;
 -}
-+// static OSSL_PARAM *do_construct_hkdf_params(char *digest, char *key,
-+//                                             size_t keylen, char *salt)
-+// {
-+//     OSSL_PARAM *params = OPENSSL_malloc(sizeof(OSSL_PARAM) * 5);
-+//     OSSL_PARAM *p = params;
- 
--/* Test that EVP_PKEY_CTX_dup() fails gracefully for a KDF */
--static int test_evp_pkey_ctx_dup_kdf_fail(void)
+-
+-static int test_evp_pkey_ctx_dup_kdf(void)
 -{
 -    int ret = 0;
--    size_t len = 0;
+-    size_t len = 0, dlen = 0;
 -    EVP_PKEY_CTX *pctx = NULL, *dctx = NULL;
 -    OSSL_PARAM *params = NULL;
-+//     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST, digest, 0);
-+//     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
-+//                                              salt, strlen(salt));
-+//     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
-+//                                              (unsigned char *)key, keylen);
-+//     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_MODE,
-+//                                             "EXTRACT_ONLY", 0);
-+//     *p = OSSL_PARAM_construct_end();
- 
+-
 -    if (!TEST_ptr(params = do_construct_hkdf_params("sha256", "secret", 6,
 -                                                    "salt")))
 -        goto err;
@@ -427,10 +421,12 @@ index 1aabfef893b08..fb817f155f68f 100644
 -        goto err;
 -    if (!TEST_int_eq(EVP_PKEY_derive_init_ex(pctx, params), 1))
 -        goto err;
--    if (!TEST_int_eq(EVP_PKEY_derive(pctx, NULL, &len), 1)
--        || !TEST_size_t_eq(len, SHA256_DIGEST_LENGTH))
+-    if (!TEST_ptr(dctx = EVP_PKEY_CTX_dup(pctx)))
 -        goto err;
--    if (!TEST_ptr_null(dctx = EVP_PKEY_CTX_dup(pctx)))
+-    if (!TEST_int_eq(EVP_PKEY_derive(pctx, NULL, &len), 1)
+-        || !TEST_size_t_eq(len, SHA256_DIGEST_LENGTH)
+-        || !TEST_int_eq(EVP_PKEY_derive(dctx, NULL, &dlen), 1)
+-        || !TEST_size_t_eq(dlen, SHA256_DIGEST_LENGTH))
 -        goto err;
 -    ret = 1;
 -err:
@@ -439,51 +435,67 @@ index 1aabfef893b08..fb817f155f68f 100644
 -    EVP_PKEY_CTX_free(pctx);
 -    return ret;
 -}
-+//     return params;
-+// }
++//static OSSL_PARAM *do_construct_hkdf_params(char *digest, char *key,
++//                                            size_t keylen, char *salt)
++//{
++//    OSSL_PARAM *params = OPENSSL_malloc(sizeof(OSSL_PARAM) * 5);
++//    OSSL_PARAM *p = params;
++//
++//    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST, digest, 0);
++//    *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
++//                                             salt, strlen(salt));
++//    *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
++//                                             (unsigned char *)key, keylen);
++//    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_MODE,
++//                                            "EXTRACT_ONLY", 0);
++//    *p = OSSL_PARAM_construct_end();
++//
++//    return params;
++//}
 +
-+/* Test that EVP_PKEY_CTX_dup() fails gracefully for a KDF */
-+// static int test_evp_pkey_ctx_dup_kdf_fail(void)
-+// {
-+//     int ret = 0;
-+//     size_t len = 0;
-+//     EVP_PKEY_CTX *pctx = NULL, *dctx = NULL;
-+//     OSSL_PARAM *params = NULL;
-+
-+//     if (!TEST_ptr(params = do_construct_hkdf_params("sha256", "secret", 6,
-+//                                                     "salt")))
-+//         goto err;
-+//     if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(NULL, "HKDF", NULL)))
-+//         goto err;
-+//     if (!TEST_int_eq(EVP_PKEY_derive_init_ex(pctx, params), 1))
-+//         goto err;
-+//     if (!TEST_int_eq(EVP_PKEY_derive(pctx, NULL, &len), 1)
-+//         || !TEST_size_t_eq(len, SHA256_DIGEST_LENGTH))
-+//         goto err;
-+//     if (!TEST_ptr_null(dctx = EVP_PKEY_CTX_dup(pctx)))
-+//         goto err;
-+//     ret = 1;
-+// err:
-+//     OPENSSL_free(params);
-+//     EVP_PKEY_CTX_free(dctx);
-+//     EVP_PKEY_CTX_free(pctx);
-+//     return ret;
-+// }
++//static int test_evp_pkey_ctx_dup_kdf(void)
++//{
++//    int ret = 0;
++//    size_t len = 0, dlen = 0;
++//    EVP_PKEY_CTX *pctx = NULL, *dctx = NULL;
++//    OSSL_PARAM *params = NULL;
++//
++//    if (!TEST_ptr(params = do_construct_hkdf_params("sha256", "secret", 6,
++//                                                    "salt")))
++//        goto err;
++//    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(NULL, "HKDF", NULL)))
++//        goto err;
++//    if (!TEST_int_eq(EVP_PKEY_derive_init_ex(pctx, params), 1))
++//        goto err;
++//    if (!TEST_ptr(dctx = EVP_PKEY_CTX_dup(pctx)))
++//        goto err;
++//    if (!TEST_int_eq(EVP_PKEY_derive(pctx, NULL, &len), 1)
++//        || !TEST_size_t_eq(len, SHA256_DIGEST_LENGTH)
++//        || !TEST_int_eq(EVP_PKEY_derive(dctx, NULL, &dlen), 1)
++//        || !TEST_size_t_eq(dlen, SHA256_DIGEST_LENGTH))
++//        goto err;
++//    ret = 1;
++//err:
++//    OPENSSL_free(params);
++//    EVP_PKEY_CTX_free(dctx);
++//    EVP_PKEY_CTX_free(pctx);
++//    return ret;
++//}
  
  int setup_tests(void)
  {
-@@ -1759,9 +1759,9 @@ int setup_tests(void)
+@@ -2190,9 +2190,9 @@ int setup_tests(void)
      if (!TEST_ptr(datadir = test_get_argument(0)))
          return 0;
  
--    ADD_TEST(test_evp_pkey_ctx_dup_kdf_fail);
-+    // ADD_TEST(test_evp_pkey_ctx_dup_kdf_fail);
+-    ADD_TEST(test_evp_pkey_ctx_dup_kdf);
++//    ADD_TEST(test_evp_pkey_ctx_dup_kdf);
      ADD_TEST(test_evp_pkey_get_bn_param_large);
 -    ADD_TEST(test_fromdata_rsa);
-+    // ADD_TEST(test_fromdata_rsa);
++//    ADD_TEST(test_fromdata_rsa);
+     ADD_TEST(test_fromdata_rsa_derive_from_pq_sp800);
+     ADD_TEST(test_fromdata_rsa_derive_from_pq_multiprime);
  #ifndef OPENSSL_NO_DH
-     ADD_TEST(test_fromdata_dh_fips186_4);
-     ADD_TEST(test_fromdata_dh_named_group);
 diff --git a/test/hmactest.c b/test/hmactest.c
 index 8f5bf32f87089..ecae245edc439 100644
 --- a/test/hmactest.c
@@ -685,8 +697,8 @@ index 818c9ac50dd3f..95b91d870d340 100644
      run(app([@args]));
  }
  
--plan tests => 166;
-+plan tests => 163;
+-plan tests => 194;
++plan tests => 191;
  
  # Canonical success
  ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"]),
@@ -737,90 +749,92 @@ index c1893b8f06e77..35b0f4f540385 100644
  ok($fatal_alert, "Duplicate ClientHello extension");
  
  SKIP: {
-@@ -204,13 +204,13 @@ SKIP: {
+@@ -203,14 +203,14 @@ SKIP: {
      $proxy->start();
      ok($fatal_alert, "Duplicate ServerHello extension");
  
 -    #Test 3: Sending a zero length extension block should pass
 -    $proxy->clear();
 -    $proxy->filter(\&extension_filter);
+-    $proxy->cipherc("DEFAULT:\@SECLEVEL=0");
 -    $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
 -    $proxy->clientflags("-no_tls1_3");
 -    $proxy->start();
 -    ok(TLSProxy::Message->success, "Zero extension length test");
-+    # #Test 3: Sending a zero length extension block should pass
-+    # $proxy->clear();
-+    # $proxy->filter(\&extension_filter);
-+    # $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
-+    # $proxy->clientflags("-no_tls1_3");
-+    # $proxy->start();
-+    # ok(TLSProxy::Message->success, "Zero extension length test");
++//    #Test 3: Sending a zero length extension block should pass
++//    $proxy->clear();
++//    $proxy->filter(\&extension_filter);
++//    $proxy->cipherc("DEFAULT:\@SECLEVEL=0");
++//    $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
++//    $proxy->clientflags("-no_tls1_3");
++//    $proxy->start();
++//    ok(TLSProxy::Message->success, "Zero extension length test");
  
      #Test 4: Inject an unsolicited extension (<= TLSv1.2)
      $fatal_alert = 0;
 diff --git a/test/recipes/70-test_sslrecords.t b/test/recipes/70-test_sslrecords.t
-index 318c9235b0c9f..4997c6dc6b3e8 100644
+index 691db13b8a..0cac04fc31 100644
 --- a/test/recipes/70-test_sslrecords.t
 +++ b/test/recipes/70-test_sslrecords.t
-@@ -45,7 +45,7 @@ my $inject_recs_num = 1;
- $proxy->serverflags("-tls1_2");
- $proxy->clientflags("-no_tls1_3");
- $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
--plan tests => 20;
-+plan tests => 18;
- ok($fatal_alert, "Out of context empty records test");
+@@ -33,7 +33,7 @@ my $fatal_alert = undef; # set by filters at expected fatal alerts
+ my $sslv2testtype = undef;
+ my $proxy_start_success = 0;
  
- #Test 2: Injecting in context empty records should succeed
-@@ -92,19 +92,19 @@ use constant {
- # which signature algorithm we want to use, and the default is SHA1.
+-plan tests => 42;
++plan tests => 40;
  
- #Test 5: Inject an SSLv2 style record format for a TLSv1.2 ClientHello
--my $sslv2testtype = TLSV1_2_IN_SSLV2;
--$proxy->clear();
--$proxy->filter(\&add_sslv2_filter);
--$proxy->serverflags("-tls1_2");
--$proxy->clientflags("-no_tls1_3 -legacy_renegotiation");
--$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
--$proxy->start();
--ok(TLSProxy::Message->success(), "TLSv1.2 in SSLv2 ClientHello test");
-+# my $sslv2testtype = TLSV1_2_IN_SSLV2;
-+# $proxy->clear();
-+# $proxy->filter(\&add_sslv2_filter);
-+# $proxy->serverflags("-tls1_2");
-+# $proxy->clientflags("-no_tls1_3 -legacy_renegotiation");
-+# $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
-+# $proxy->start();
-+# ok(TLSProxy::Message->success(), "TLSv1.2 in SSLv2 ClientHello test");
+ SKIP: {
+     skip "TLS 1.2 is disabled", 21 if disabled("tls1_2");
+@@ -141,19 +141,19 @@ sub run_tests
+         # which signature algorithm we want to use, and the default is SHA1.
  
- #Test 6: Inject an SSLv2 style record format for an SSLv2 ClientHello. We don't
- #        support this so it should fail. We actually treat it as an unknown
- #        protocol so we don't even send an alert in this case.
--$sslv2testtype = SSLV2_IN_SSLV2;
-+my $sslv2testtype = SSLV2_IN_SSLV2;
- $proxy->clear();
- $proxy->serverflags("-tls1_2");
- $proxy->clientflags("-no_tls1_3");
-@@ -115,13 +115,13 @@ ok(TLSProxy::Message->fail(), "SSLv2 in SSLv2 ClientHello test");
- #Test 7: Sanity check ClientHello fragmentation. This isn't really an SSLv2 test
- #        at all, but it gives us confidence that Test 8 fails for the right
- #        reasons
--$sslv2testtype = FRAGMENTED_IN_TLSV1_2;
--$proxy->clear();
--$proxy->serverflags("-tls1_2");
--$proxy->clientflags("-no_tls1_3");
--$proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
--$proxy->start();
--ok(TLSProxy::Message->success(), "Fragmented ClientHello in TLSv1.2 test");
-+# $sslv2testtype = FRAGMENTED_IN_TLSV1_2;
-+# $proxy->clear();
-+# $proxy->serverflags("-tls1_2");
-+# $proxy->clientflags("-no_tls1_3");
-+# $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
-+# $proxy->start();
-+# ok(TLSProxy::Message->success(), "Fragmented ClientHello in TLSv1.2 test");
+         #Test 5: Inject an SSLv2 style record format for a TLSv1.2 ClientHello
+-        $sslv2testtype = TLSV1_2_IN_SSLV2;
+-        $proxy->clear();
+-        $proxy->filter(\&add_sslv2_filter);
+-        $proxy->serverflags("-tls1_2");
+-        $proxy->clientflags("-no_tls1_3 -legacy_renegotiation");
+-        $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
+-        $proxy->start();
+-        ok(TLSProxy::Message->success(), "TLSv1.2 in SSLv2 ClientHello test");
++//        $sslv2testtype = TLSV1_2_IN_SSLV2;
++//        $proxy->clear();
++//        $proxy->filter(\&add_sslv2_filter);
++//        $proxy->serverflags("-tls1_2");
++//        $proxy->clientflags("-no_tls1_3 -legacy_renegotiation");
++//        $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
++//        $proxy->start();
++//        ok(TLSProxy::Message->success(), "TLSv1.2 in SSLv2 ClientHello test");
  
- #Test 8: Fragment a TLSv1.2 ClientHello across a TLS1.2 record; an SSLv2
- #        record; and another TLS1.2 record. This isn't allowed so should fail
+         #Test 6: Inject an SSLv2 style record format for an SSLv2 ClientHello. We don't
+         #        support this so it should fail. We actually treat it as an unknown
+         #        protocol so we don't even send an alert in this case.
+-        $sslv2testtype = SSLV2_IN_SSLV2;
++        my $sslv2testtype = SSLV2_IN_SSLV2;
+         $proxy->clear();
+         $proxy->serverflags("-tls1_2");
+         $proxy->clientflags("-no_tls1_3");
+@@ -164,13 +164,13 @@ sub run_tests
+         #Test 7: Sanity check ClientHello fragmentation. This isn't really an SSLv2 test
+         #        at all, but it gives us confidence that Test 8 fails for the right
+         #        reasons
+-        $sslv2testtype = FRAGMENTED_IN_TLSV1_2;
+-        $proxy->clear();
+-        $proxy->serverflags("-tls1_2");
+-        $proxy->clientflags("-no_tls1_3");
+-        $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
+-        $proxy->start();
+-        ok(TLSProxy::Message->success(), "Fragmented ClientHello in TLSv1.2 test");
++//        $sslv2testtype = FRAGMENTED_IN_TLSV1_2;
++//        $proxy->clear();
++//        $proxy->serverflags("-tls1_2");
++//        $proxy->clientflags("-no_tls1_3");
++//        $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
++//        $proxy->start();
++//        ok(TLSProxy::Message->success(), "Fragmented ClientHello in TLSv1.2 test");
+ 
+         #Test 8: Fragment a TLSv1.2 ClientHello across a TLS1.2 record; an SSLv2
+         #        record; and another TLS1.2 record. This isn't allowed so should fail
 diff --git a/test/recipes/70-test_sslversions.t b/test/recipes/70-test_sslversions.t
 index 2123860d9cb44..b70fa64b1ead2 100644
 --- a/test/recipes/70-test_sslversions.t
@@ -890,11 +904,11 @@ index 2123860d9cb44..b70fa64b1ead2 100644
  #Test 7: TLS1.4 and TLS1.3 in supported versions. Should succeed and use TLS1.3
  $proxy->clear();
 diff --git a/test/recipes/70-test_tls13hrr.t b/test/recipes/70-test_tls13hrr.t
-index 9d0694c3d6ecd..adc11465ef76a 100644
+index 4e146bcadf..b71e138bf7 100644
 --- a/test/recipes/70-test_tls13hrr.t
 +++ b/test/recipes/70-test_tls13hrr.t
 @@ -88,8 +88,8 @@ ok($fatal_alert, "Server duplicated HRR");
- #        TLSv1.3. We expect the server to select X25519 in the HRR and the
+ #        TLSv1.3. We expect the server to select P-521 in the HRR and the
  #        handshake to complete successfully
  SKIP: {
 -    skip "EC/TLSv1.2 is disabled in this build", 1
@@ -903,4 +917,4 @@ index 9d0694c3d6ecd..adc11465ef76a 100644
 +        if 1;
  
      $proxy->clear();
-     $proxy->clientflags("-groups P-256:brainpoolP512r1:X25519");
+     $proxy->clientflags("-groups P-256:brainpoolP512r1:P-521");
