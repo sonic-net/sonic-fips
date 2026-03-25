@@ -17,7 +17,7 @@ sudo apt-get install -y golang
 
 # Build Python
 sudo apt-get install -y lsb-release sharutils libreadline-dev libncursesw5-dev  libbz2-dev liblzma-dev libgdbm-dev libdb-dev tk-dev blt-dev  libexpat1-dev libbluetooth-dev locales-all libsqlite3-dev media-types
-sudo apt-get install -y time net-tools xvfb systemtap-sdt-dev python3-sphinx python3-docs-theme texinfo
+sudo apt-get install -y time net-tools xvfb systemtap-sdt-dev python3-sphinx python3-docs-theme texinfo liblmdb-dev
 
 # Build krb5
 sudo apt-get install -y ss-dev libldap2-dev libc6-dev libkeyutils-dev byacc docbook-to-man libsasl2-dev libverto-dev python3-cheetah python3-lxml doxygen doxygen-latex tex-gyre

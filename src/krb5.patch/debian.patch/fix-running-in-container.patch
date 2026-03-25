@@ -1,0 +1,13 @@
+diff --git a/src/util/k5test.py b/src/util/k5test.py
+index d6807a4f4..e6d483a96 100644
+--- a/src/util/k5test.py
++++ b/src/util/k5test.py
+@@ -1191,7 +1191,7 @@ class K5Realm(object):
+         try: subprocess.check_output(['keyctl', 'add', 'user', 'some_key', 'data', '@p'], stderr=subprocess.STDOUT)
+         except subprocess.CalledProcessError as e:
+             out = str(e.output, 'utf-8')
+-            if 'Function not implemented' in out and e.returncode == 1:
++            if ('Function not implemented' in out or 'Operation not permitted' in out) and e.returncode == 1:
+                 return False # masked by seccomp
+             fail('Unexpected output from keyctl: '+out)
+             raise
