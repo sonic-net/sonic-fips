@@ -38,7 +38,7 @@ jobs:
       sudo rm -rf $(ls -A1)
     displayName: 'Clean Workspace'
   - script: |
-      set -x
+      set -ex
       sudo mkdir -p $HOME
       sudo chown $USER $HOME
       sudo apt-get update
