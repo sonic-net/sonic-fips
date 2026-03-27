@@ -38,9 +38,8 @@ jobs:
       sudo rm -rf $(ls -A1)
     displayName: 'Clean Workspace'
   - script: |
-      set -x
-      sudo mkdir -p $HOME
-      sudo chown $USER $HOME
+      set -ex
+      mkdir -p $HOME
       sudo apt-get update
       sudo apt-get install -y git python3-pip
       sudo apt-get install -y cmake git make build-essential quilt debhelper bc python3 python3-pip sudo libssl-dev libgcc-12-dev
@@ -61,7 +60,7 @@ jobs:
       # Build krb5
       sudo apt-get install -y ss-dev libldap2-dev libc6-dev libkeyutils-dev keyutils byacc docbook-to-man libsasl2-dev libverto-dev python3-cheetah python3-lxml doxygen doxygen-latex tex-gyre
 
-      sudo pip3 install --break-system-packages blurb
+      pip3 install --break-system-packages blurb
 
       sudo apt-get install -y tree
       sudo apt-get install -y acl
@@ -76,8 +75,8 @@ jobs:
     displayName: 'Checkout Symcrypt submodules'
   - script: |
       set -ex
-      sudo mkdir -p $HOME
-      sudo pip3 install --break-system-packages -r src/SymCrypt/scripts/requirements.txt
+      mkdir -p $HOME
+      pip3 install --break-system-packages -r src/SymCrypt/scripts/requirements.txt
       git config --global user.name sonicbld
       git config --global user.email sonicbld@microsoft.com
       if [ "${{ parameters.arch }}" == armhf ]; then

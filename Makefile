@@ -1,6 +1,6 @@
 .ONESHELL:
 SHELL = /bin/bash
-.SHELLFLAGS += -e
+.SHELLFLAGS += -euo pipefail
 
 ARCH ?= amd64
 SRC_PATH = src
