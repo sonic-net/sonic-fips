@@ -1,1 +1,2 @@
 openssl-config.patch
+disable-vdso-test-for-armhf.patch

@@ -1,0 +1,17 @@
+On armhf, VDSO doesn't appear to be being used for go binaries getting
+CLOCK_MONOTONIC time. Skip the test for now. This does mean go binaries
+will have worse performance in this area.
+
+diff --git a/src/runtime/vdso_test.go b/src/runtime/vdso_test.go
+index d025ba50c..54a03c00a 100644
+--- a/src/runtime/vdso_test.go
++++ b/src/runtime/vdso_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (freebsd && (386 || amd64 || arm || arm64 || riscv64)) || (linux && (386 || amd64 || arm || arm64 || loong64 || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x))
++//go:build (freebsd && (386 || amd64 || arm || arm64 || riscv64)) || (linux && (386 || amd64 || arm64 || loong64 || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x))
+ 
+ package runtime_test
+ 
