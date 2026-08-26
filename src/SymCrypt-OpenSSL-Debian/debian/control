@@ -1,5 +1,5 @@
 Package: symcrypt-openssl
-Version: 1.9.4
+Version: 1.11.0
 Section: devel
 Priority: optional
 Architecture: all
