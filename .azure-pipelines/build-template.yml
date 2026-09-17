@@ -28,7 +28,7 @@ jobs:
   pool: ${{ parameters.pool }}
   container:
     image: ${{ parameters.image }}
-    options:  "--name ci-container -v /usr/bin/docker:/tmp/docker:ro"
+    options:  "--name ci-container --group-add 988 -v /usr/bin/docker:/tmp/docker:ro -v /var/run/docker.sock:/var/run/docker.sock"
   steps:
   - script: |
       /tmp/docker exec -t -u 0 ci-container \
