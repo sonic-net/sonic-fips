@@ -15,7 +15,7 @@ $(MAIN_TARGET):
 	cd ../golang-fips
 	scripts/full-initialize-repo.sh $(GOLANGT_TAG)
 	cp -r ../golang-debian/debian go/
-	sed -i '/^0006-cmd-compile-fix-mergelocals-for-arm32-s390x-riscv64.patch$/d' go/debian/patches/series
+	sed -i '/^0006-cmd-compile-fix-mergelocals-for-arm32-s390x-riscv64.patch$$/d' go/debian/patches/series
 	cd go
 	sed -i "s/$(GOLANG_VERSOIN)/$(GOLANG_VERSOIN)+fips/" debian/changelog
 	cp ../../golang/patches/*.patch debian/patches/
