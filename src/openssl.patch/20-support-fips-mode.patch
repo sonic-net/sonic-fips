@@ -1,8 +1,14 @@
+Subject: [PATCH] Select SONiC FIPS mode from boot and runtime configuration
+
+Origin: sonic-net/sonic-fips src/openssl.patch/20-support-fips-mode.patch
+Source: 2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6
+Refresh context for OpenSSL 3.5.7 so the same change applies without fuzz.
+The resulting source is identical to the existing Make/quilt patch result.
+
 diff --git a/crypto/init.c b/crypto/init.c
-index cacf637c89..d8aaf13868 100644
 --- a/crypto/init.c
 +++ b/crypto/init.c
-@@ -277,6 +277,72 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_async)
+@@ -307,6 +307,72 @@
      return 1;
  }
  
@@ -75,29 +81,28 @@ index cacf637c89..d8aaf13868 100644
  #ifndef OPENSSL_NO_ENGINE
  static CRYPTO_ONCE engine_openssl = CRYPTO_ONCE_STATIC_INIT;
  DEFINE_RUN_ONCE_STATIC(ossl_init_engine_openssl)
-@@ -605,6 +671,9 @@ int OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
-             && !RUN_ONCE(&async, ossl_init_async))
-         return 0;
+@@ -646,6 +712,9 @@
  
-+    if (!RUN_ONCE(&fips_config, ossl_init_fips_conf))
+     if ((opts & OPENSSL_INIT_ASYNC)
+         && !RUN_ONCE(&async, ossl_init_async))
 +        return 0;
 +
++    if (!RUN_ONCE(&fips_config, ossl_init_fips_conf))
+         return 0;
+ 
  #ifndef OPENSSL_NO_ENGINE
-     if ((opts & OPENSSL_INIT_ENGINE_OPENSSL)
-             && !RUN_ONCE(&engine_openssl, ossl_init_engine_openssl))
 diff --git a/crypto/engine/eng_table.c b/crypto/engine/eng_table.c
-index 3138a15260..a4807387f6 100644
 --- a/crypto/engine/eng_table.c
 +++ b/crypto/engine/eng_table.c
-@@ -87,6 +87,11 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
+@@ -86,6 +86,11 @@
+ {
      int ret = 0, added = 0;
      ENGINE_PILE tmplate, *fnd;
- 
++
 +    if (global_engine_lock == NULL){
 +        ENGINE* e = ENGINE_new();
 +        ENGINE_free(e);
 +    }
-+
+ 
      if (!CRYPTO_THREAD_write_lock(global_engine_lock))
          return 0;
-     if (!(*table))

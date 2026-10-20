@@ -1,0 +1,294 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@tar.bzl//tar:mtree.bzl", "mtree_mutate", "mtree_spec")
+load("@tar.bzl//tar:tar.bzl", "tar")
+
+package(default_visibility = ["//visibility:public"])
+
+_LIBDIR = select({
+    "@platforms//cpu:x86_64": "usr/lib/x86_64-linux-gnu",
+    "@platforms//cpu:aarch64": "usr/lib/aarch64-linux-gnu",
+})
+
+configure_make(
+    name = "build",
+    args = [
+        "-j4",
+        "DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
+    ],
+    build_data = ["@sonic_build_infra//tools/build_tools:configure_runtime"],
+    configure_command = "Configure",
+    configure_in_place = True,
+    configure_options = [
+        "shared",
+        "--prefix=/usr",
+        "--openssldir=/usr/lib/ssl",
+        "no-idea",
+        "no-mdc2",
+        "no-rc5",
+        "no-ssl3",
+        "enable-unit-test",
+        "no-ssl3-method",
+        "enable-rfc3779",
+        "enable-cms",
+        "no-capieng",
+        "no-rdrand",
+        "enable-tfo",
+        "enable-zstd",
+        "enable-zlib",
+        "enable-fips",
+        "enable-ec_nistp_64_gcc_128",
+    ] + select({
+        "@platforms//cpu:x86_64": [
+            "debian-amd64",
+            "--libdir=lib/x86_64-linux-gnu",
+        ],
+        "@platforms//cpu:aarch64": [
+            "debian-arm64",
+            "--libdir=lib/aarch64-linux-gnu",
+            "no-padlockeng",
+        ],
+    }),
+    configure_prefix = "$$EXT_BUILD_ROOT$$/$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl",
+    env = {
+        "CFLAGS": "-ffile-prefix-map=$$EXT_BUILD_ROOT$$=.",
+        # Build-time Perl is declared; installed scripts use the target's Perl.
+        "HASHBANGPERL": "/usr/bin/perl",
+        "PERL": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl",
+        # Match Make's Debian changelog timestamp plus one day.
+        "SOURCE_DATE_EPOCH": "1787585182",
+    },
+    features = ["-sanitize_pwd"],
+    lib_source = "@openssl_src//:sources",
+    out_bin_dir = "usr/bin",
+    out_binaries = ["openssl"],
+    out_data_files = [
+        "usr/bin/c_rehash",
+        "usr/lib/ssl/openssl.cnf",
+        "usr/lib/ssl/misc/CA.pl",
+        "usr/lib/ssl/misc/tsget.pl",
+    ] + select({
+        "@platforms//cpu:x86_64": [
+            "usr/lib/x86_64-linux-gnu/engines-3/afalg.so",
+            "usr/lib/x86_64-linux-gnu/engines-3/loader_attic.so",
+            "usr/lib/x86_64-linux-gnu/engines-3/padlock.so",
+        ],
+        "@platforms//cpu:aarch64": [
+            "usr/lib/aarch64-linux-gnu/engines-3/afalg.so",
+            "usr/lib/aarch64-linux-gnu/engines-3/loader_attic.so",
+        ],
+    }),
+    out_include_dir = "usr/include",
+    out_lib_dir = _LIBDIR,
+    out_shared_libs = [
+        "libcrypto.so.3",
+        "libssl.so.3",
+    ],
+    targets = [
+        "build_sw",
+        "install_sw",
+        "install_ssldirs",
+    ],
+    deps = [
+        "@openssl_deps//libzstd-dev:libzstd",
+        "@openssl_deps//zlib1g-dev:zlib1g",
+    ],
+)
+
+[
+    filegroup(
+        name = "built_" + filename,
+        srcs = [":build"],
+        output_group = filename,
+    )
+    for filename in [
+        "openssl",
+        "libcrypto.so.3",
+        "libssl.so.3",
+        "afalg.so",
+        "loader_attic.so",
+        "padlock.so",
+        "c_rehash",
+        "openssl.cnf",
+        "CA.pl",
+        "tsget.pl",
+    ]
+]
+
+# Read scripts/configuration from the same configured build as packaged ELFs.
+# Otherwise their normal configuration would compile OpenSSL a second time.
+[
+    keep_debug_info(
+        name = "packaged_" + filename,
+        src = ":built_" + filename,
+    )
+    for filename in [
+        "c_rehash",
+        "openssl.cnf",
+        "CA.pl",
+        "tsget.pl",
+    ]
+]
+
+# Paths follow Debian's libssl3t64.install. Engine plugins are data outputs of
+# configure_make, so C++ consumers link only libcrypto and libssl.
+[
+    sonic_deploy_tar(
+        name = "libssl3t64_pkg_" + cpu,
+        srcs = ["@openssl_src//:debian/copyright"],
+        binaries = {
+            "usr/lib/{}/{} type=file uid=0 gid=0 mode=0644".format(multiarch, filename): ":built_" + filename
+            for filename in [
+                "libcrypto.so.3",
+                "libssl.so.3",
+            ]
+        } | {
+            "usr/lib/{}/engines-3/{} type=file uid=0 gid=0 mode=0644".format(multiarch, filename): ":built_" + filename
+            for filename in engines
+        },
+        force_debug_build = True,
+        mtree = ["usr/share/doc/libssl3t64/copyright type=file uid=0 gid=0 mode=0644 content=$(location @openssl_src//:debian/copyright)"],
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+        visibility = ["//visibility:public"],
+    )
+    for cpu, multiarch, engines in [
+        (
+            "x86_64",
+            "x86_64-linux-gnu",
+            [
+                "afalg.so",
+                "loader_attic.so",
+                "padlock.so",
+            ],
+        ),
+        (
+            "aarch64",
+            "aarch64-linux-gnu",
+            [
+                "afalg.so",
+                "loader_attic.so",
+            ],
+        ),
+    ]
+]
+
+[
+    alias(
+        name = "libssl3t64_pkg" + suffix,
+        actual = select({
+            "@platforms//cpu:x86_64": ":libssl3t64_pkg_x86_64" + suffix,
+            "@platforms//cpu:aarch64": ":libssl3t64_pkg_aarch64" + suffix,
+        }),
+    )
+    for suffix in [
+        "",
+        ".debug_symbols",
+    ]
+]
+
+sonic_deploy_tar(
+    name = "openssl_pkg",
+    srcs = [
+        ":packaged_CA.pl",
+        ":packaged_c_rehash",
+        ":packaged_openssl.cnf",
+        ":packaged_tsget.pl",
+        "@openssl_src//:debian/copyright",
+    ],
+    binaries = {"usr/bin/openssl type=file uid=0 gid=0 mode=0755": ":built_openssl"},
+    force_debug_build = True,
+    mtree = [
+        "etc/ssl/certs type=dir uid=0 gid=0 mode=0755",
+        "etc/ssl/private type=dir uid=0 gid=0 mode=0700",
+        "etc/ssl/openssl.cnf type=file uid=0 gid=0 mode=0644 content=$(location :packaged_openssl.cnf)",
+        "usr/bin/c_rehash type=file uid=0 gid=0 mode=0755 content=$(location :packaged_c_rehash)",
+        "usr/lib/ssl/certs type=link uid=0 gid=0 link=/etc/ssl/certs",
+        "usr/lib/ssl/private type=link uid=0 gid=0 link=/etc/ssl/private",
+        "usr/lib/ssl/openssl.cnf type=link uid=0 gid=0 link=/etc/ssl/openssl.cnf",
+        "usr/lib/ssl/cert.pem type=link uid=0 gid=0 link=/etc/ssl/certs/ca-certificates.crt",
+        "usr/lib/ssl/misc/CA.pl type=file uid=0 gid=0 mode=0755 content=$(location :packaged_CA.pl)",
+        "usr/lib/ssl/misc/tsget.pl type=file uid=0 gid=0 mode=0755 content=$(location :packaged_tsget.pl)",
+        "usr/lib/ssl/misc/tsget type=link uid=0 gid=0 link=tsget.pl",
+        "usr/share/doc/openssl/copyright type=file uid=0 gid=0 mode=0644 content=$(location @openssl_src//:debian/copyright)",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Reuse the runtime build's complete install tree. The development archive
+# contains static libraries, but adding it must not change build's CcInfo to
+# prefer static linking for existing consumers.
+filegroup(
+    name = "installed_tree",
+    srcs = [":build"],
+    output_group = "gen_dir",
+)
+
+keep_debug_info(
+    name = "packaged_installed_tree",
+    src = ":installed_tree",
+)
+
+_DEV_INPUTS = [
+    ":packaged_installed_tree",
+    "@openssl_src//:debian/copyright",
+]
+
+mtree_spec(
+    name = "development_files",
+    srcs = _DEV_INPUTS,
+    include_runfiles = False,
+)
+
+mtree_mutate(
+    name = "development_layout",
+    awk_script = "development_layout.awk",
+    mtime = "1787585182",
+    mtree = ":development_files",
+    owner = "0",
+    ownername = "root",
+    script_args = select({
+        "@platforms//cpu:x86_64": {
+            "multiarch": "x86_64-linux-gnu",
+            "group": "0",
+            "groupname": "root",
+        },
+        "@platforms//cpu:aarch64": {
+            "multiarch": "aarch64-linux-gnu",
+            "group": "0",
+            "groupname": "root",
+        },
+    }),
+)
+
+tar(
+    name = "libssl_dev_pkg",
+    srcs = _DEV_INPUTS,
+    mtree = ":development_layout",
+)
+
+py_library(
+    name = "package_test_utils",
+    testonly = True,
+    srcs = ["package_test.py"],
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["package_test.py"],
+    args = ["$(location :" + target + ")" for target in [
+        "libssl3t64_pkg",
+        "openssl_pkg",
+        "libssl3t64_pkg.debug_symbols",
+        "openssl_pkg.debug_symbols",
+        "libssl_dev_pkg",
+    ]],
+    data = [
+        ":libssl3t64_pkg",
+        ":libssl3t64_pkg.debug_symbols",
+        ":libssl_dev_pkg",
+        ":openssl_pkg",
+        ":openssl_pkg.debug_symbols",
+    ],
+)
