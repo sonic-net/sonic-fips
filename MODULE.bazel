@@ -1,6 +1,6 @@
 module(
     name = "sonic-fips",
-    version = "0.0.1",
+    version = "0.0.2",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -8,6 +8,7 @@ module(
 )
 
 bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "rules_cc", version = "0.2.20")
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.6")
 bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
@@ -26,7 +27,7 @@ single_version_override(
 )
 
 gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
-use_repo(gcc, "gcc_toolchains")
+use_repo(gcc, "gcc-14.2.0-linux-target-aarch64-host-aarch64", "gcc-14.2.0-linux-target-x86_64-host-x86_64", "gcc_toolchains")
 
 register_toolchains("@gcc_toolchains//:all")
 
@@ -89,6 +90,28 @@ use_repo(
 openssh_source = use_repo_rule("//openssh:sources.bzl", "openssh_source")
 
 openssh_source(name = "openssh_src")
+
+bazel_dep(name = "toolchains_llvm", version = "1.11.2")
+
+sysroots = use_extension("@sonic_build_infra//toolchains/sysroot:extensions.bzl", "sysroots")
+use_repo(sysroots, "sonic_sysroot")
+
+# Core SymCrypt explicitly chooses Clang in the native recipe. Do not register
+# it globally: its cmake_variant target selects this toolchain locally.
+llvm = use_extension("//symcrypt:toolchain.bzl", "clang")
+use_repo(llvm, "symcrypt_llvm")
+
+symcrypt_source = use_repo_rule("//symcrypt:sources.bzl", "symcrypt_source")
+
+symcrypt_source(name = "symcrypt_src")
+
+symcrypt_openssl_source = use_repo_rule("//symcrypt:sources.bzl", "symcrypt_openssl_source")
+
+symcrypt_openssl_source(name = "symcrypt_openssl_src")
+
+pyelftools_source = use_repo_rule("//symcrypt:sources.bzl", "pyelftools_source")
+
+pyelftools_source(name = "symcrypt_pyelftools")
 
 apt.install(
     dependency_set = "krb5_deps",

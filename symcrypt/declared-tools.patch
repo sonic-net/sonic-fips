@@ -1,0 +1,42 @@
+Use declared CMake tools for SymCrypt's existing post-build steps and jitterentropy.
+Source: Microsoft/SymCrypt 286762b7730e2b780678f5ab11fef2b1bad639e0.
+The order, flags, entropy generation, and integrity calculation remain unchanged.
+CMAKE_STRIP/CMAKE_OBJCOPY are the same pinned GNU binutils family used by SONiC's
+Bazel toolchain. CMAKE_MAKE_PROGRAM and CMAKE_AR prevent host-tool fallback.
+Pass the declared shared-link flags to jitterentropy as well as its compile flags.
+diff --git a/upstream/modules/posix/common/ModuleCommon.cmake b/upstream/modules/posix/common/ModuleCommon.cmake
+--- a/upstream/modules/posix/common/ModuleCommon.cmake
++++ b/upstream/modules/posix/common/ModuleCommon.cmake
+@@ -24,6 +24,6 @@
+     set(OBJCOPY_COMMAND ${TARGET_TRIPLE}-objcopy)
+ else()
+-    set(STRIP_COMMAND strip)
+-    set(OBJCOPY_COMMAND objcopy)
++    set(STRIP_COMMAND ${CMAKE_STRIP})
++    set(OBJCOPY_COMMAND ${CMAKE_OBJCOPY})
+ endif()
+ 
+diff --git a/upstream/modules/posix/common/CMakeLists.txt b/upstream/modules/posix/common/CMakeLists.txt
+--- a/upstream/modules/posix/common/CMakeLists.txt
++++ b/upstream/modules/posix/common/CMakeLists.txt
+@@ -9,5 +9,5 @@
+ if(SYMCRYPT_FIPS_BUILD)
+   set(jitter_cflags "${CMAKE_C_FLAGS} -fwrapv -fvisibility=hidden -DCONFIG_CRYPTO_CPU_JITTERENTROPY_SECURE_MEMORY")
+-  set(jitter_ldflags "")
++  set(jitter_ldflags "${CMAKE_SHARED_LINKER_FLAGS}")
+ 
+   if(SYMCRYPT_TARGET_ARCH MATCHES "X86")
+@@ -29,10 +29,11 @@
+ 
+   add_custom_target(jitterentropy_lib ALL
+-    COMMAND make clean
++    COMMAND ${CMAKE_MAKE_PROGRAM} clean
+     COMMAND ${CMAKE_COMMAND} -E
+       env "CC=${CMAKE_C_COMPILER}"
++      env "AR=${CMAKE_AR}"
+       env "CFLAGS=${jitter_cflags}"
+       env "LDFLAGS=${jitter_ldflags}"
+-      make
++      ${CMAKE_MAKE_PROGRAM}
+     WORKING_DIRECTORY ${SYMCRYPT_SOURCE_DIR}/3rdparty/jitterentropy-library
+   )
