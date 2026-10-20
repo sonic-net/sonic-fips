@@ -1,0 +1,65 @@
+name: Bazel Kerberos crypto library
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Kerberos (${{ matrix.architecture }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: amd64
+            runner: ubuntu-24.04
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    container: debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install validation and archive tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends binutils ca-certificates curl gdb git patch python3 tar unzip xz-utils zstd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          bazelisk-version: 1.29.0
+          bazelisk-cache: true
+          repository-cache: true
+          disk-cache: krb5-${{ matrix.architecture }}
+          cache-version: "8.5.1"
+      - name: Record maintained registry inputs
+        run: python3 -B tools/bazel/registry_inputs.py artifacts/krb5
+      - name: Run original crypto tests and check installed runtime and debug files
+        env:
+          # Bazel includes client environment in retained build events.
+          BAZELISK_GITHUB_TOKEN: ""
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test ! -e MODULE.bazel.lock
+          test -z "$(git -c safe.directory="$GITHUB_WORKSPACE" ls-files MODULE.bazel.lock)"
+          git -c safe.directory="$GITHUB_WORKSPACE" check-ignore MODULE.bazel.lock
+          python3 -B -m krb5.ci --architecture '${{ matrix.architecture }}' --artifacts artifacts/krb5
+          git -c safe.directory="$GITHUB_WORKSPACE" diff --exit-code
+      - name: Upload runtime and debug TARs, logs and source evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: krb5-${{ matrix.architecture }}
+          path: artifacts/krb5
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 1
