@@ -54,3 +54,38 @@ use_repo(apt, "openssl_deps")
 openssl_source = use_repo_rule("//openssl:sources.bzl", "openssl_source")
 
 openssl_source(name = "openssl_src")
+
+apt.install(
+    dependency_set = "openssh_deps",
+    packages = [
+        "libaudit-dev",
+        "libcbor-dev",
+        "libcrypt-dev",
+        "libedit-dev",
+        "libfido2-dev",
+        "libkrb5-dev",
+        "libpam0g-dev",
+        "libselinux1-dev",
+        "libudev-dev",
+        "libwrap0-dev",
+        "libwtmpdb-dev",
+        "zlib1g-dev",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "openssh_deps")
+
+# Select the pinned package's direct CcInfo so source OpenSSL supplies crypto.
+use_repo(
+    apt,
+    fido2_amd64 = "trixie_libfido2-dev-amd64_1.15.0-1-b1",
+    fido2_arm64 = "trixie_libfido2-dev-arm64_1.15.0-1-b1",
+)
+
+openssh_source = use_repo_rule("//openssh:sources.bzl", "openssh_source")
+
+openssh_source(name = "openssh_src")
