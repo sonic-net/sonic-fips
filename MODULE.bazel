@@ -89,3 +89,27 @@ use_repo(
 openssh_source = use_repo_rule("//openssh:sources.bzl", "openssh_source")
 
 openssh_source(name = "openssh_src")
+
+apt.install(
+    dependency_set = "krb5_deps",
+    packages = [
+        "comerr-dev",
+        "libcmocka-dev",
+        "libkeyutils-dev",
+        "libldap-dev",
+        "liblmdb-dev",
+        "libsasl2-dev",
+        "libverto-dev",
+        "ss-dev",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "krb5_deps")
+
+krb5_source = use_repo_rule("//krb5:sources.bzl", "krb5_source")
+
+krb5_source(name = "krb5_src")

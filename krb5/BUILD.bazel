@@ -1,0 +1,201 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "configure.sh",
+    "sources.bzl",
+])
+
+[configure_make(
+    name = name,
+    args = [
+        "-j4",
+        "DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
+        "COMPILE_ET=$$EXT_BUILD_ROOT$$/$(execpath @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/compile_et",
+        "MAKE_COMMANDS=$$EXT_BUILD_ROOT$$/$(execpath @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/mk_cmds",
+    ],
+    build_data = [
+        "@sonic_build_infra//tools/build_tools:configure_runtime",
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@krb5_deps//:pkgconfig",
+    ],
+    configure_command = "bazel-configure",
+    configure_in_place = True,
+    configure_options = [
+        "--prefix=/usr",
+        "--with-system-et",
+        "--with-system-ss",
+        "--disable-rpath",
+        "--enable-shared",
+        "--with-ldap",
+        "--without-tcl",
+        "--with-system-verto",
+        "--with-lmdb",
+        "--with-crypto-impl=openssl",
+        "--sysconfdir=/etc",
+        "--localstatedir=/etc",
+    ] + select({
+        "@platforms//cpu:x86_64": ["--libdir=/usr/lib/x86_64-linux-gnu"],
+        "@platforms//cpu:aarch64": ["--libdir=/usr/lib/aarch64-linux-gnu"],
+    }),
+    env = {
+        "AUTOCONF": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/autoconf",
+        "AUTOHEADER": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/autoheader",
+        "PERL": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl",
+        "YACC": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/bison -y",
+        "KERBEROS_BUILD_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:kerberos_runtime)",
+        "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/pkgconf",
+        "BAZEL_PKGCONFIG_FILES": "$(locations @krb5_deps//:pkgconfig)",
+        "OPENSSL_CONF": "/dev/null",
+        "LDFLAGS": "-Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
+        "LD_LIBRARY_PATH": "$$EXT_BUILD_DEPS/build/usr/lib/x86_64-linux-gnu:$$EXT_BUILD_DEPS/build/usr/lib/aarch64-linux-gnu:$$EXT_BUILD_DEPS/lib",
+    },
+    features = ["-sanitize_pwd"],
+    lib_source = "@krb5_src//src:sources",
+    out_data_files = select({
+        "@platforms//cpu:x86_64": ["usr/lib/x86_64-linux-gnu/krb5/plugins/preauth/spake.so"],
+        "@platforms//cpu:aarch64": ["usr/lib/aarch64-linux-gnu/krb5/plugins/preauth/spake.so"],
+    }) + ([
+        "crypto-tests.json",
+        "crypto-loader.log",
+    ] if name == "crypto_tests" else []),
+    out_include_dir = "usr/include",
+    out_lib_dir = select({
+        "@platforms//cpu:x86_64": "usr/lib/x86_64-linux-gnu",
+        "@platforms//cpu:aarch64": "usr/lib/aarch64-linux-gnu",
+    }),
+    out_shared_libs = [
+        "libk5crypto.so.3.1",
+        "libkrb5support.so.0.1",
+        "libkrb5.so.3.3",
+        "libgssapi_krb5.so.2.2",
+    ],
+    tags = [
+        "manual",
+        "no-cache",
+    ] if name == "crypto_tests" else [],
+    targets = targets,
+    deps = [
+        "//openssl:build",
+        "@krb5_deps//comerr-dev:comerr",
+        "@krb5_deps//libcmocka-dev:libcmocka",
+        "@krb5_deps//libkeyutils-dev:libkeyutils",
+        "@krb5_deps//libldap-dev:libldap",
+        "@krb5_deps//liblmdb-dev:liblmdb",
+        "@krb5_deps//libsasl2-dev:libsasl2",
+        "@krb5_deps//libverto-dev:libverto",
+        "@krb5_deps//ss-dev:ss",
+    ],
+) for name, targets in [
+    (
+        "build",
+        [
+            "all",
+            "install",
+        ],
+    ),
+    (
+        "crypto_tests",
+        [
+            "all",
+            "sonic-crypto-tests",
+            "install",
+        ],
+    ),
+]]
+
+filegroup(
+    name = "crypto_test_outputs",
+    srcs = [":crypto_tests"],
+    output_group = "gen_dir",
+)
+
+keep_debug_info(
+    name = "crypto_tests_debug",
+    src = ":crypto_test_outputs",
+)
+
+# Keep runtime contents aligned with the four Debian packages used by SONiC.
+_LIBRARIES = {
+    "libk5crypto3": "libk5crypto.so.3.1",
+    "libkrb5support0": "libkrb5support.so.0.1",
+    "libkrb5-3": "libkrb5.so.3.3",
+    "libgssapi-krb5-2": "libgssapi_krb5.so.2.2",
+}
+
+[filegroup(
+    name = package.replace("-", "_") + "_library",
+    srcs = [":build"],
+    output_group = library,
+) for package, library in _LIBRARIES.items()]
+
+filegroup(
+    name = "spake_plugin",
+    srcs = [":build"],
+    output_group = "spake.so",
+)
+
+[sonic_deploy_tar(
+    name = package.replace("-", "_") + "_pkg_" + cpu,
+    srcs = ["@krb5_src//:debian/copyright"] + ([
+        "@krb5_src//:README",
+        "@krb5_src//:debian/README.Debian",
+    ] if package == "libkrb5-3" else []),
+    binaries = {key: value for key, value in [
+        (
+            "usr/lib/" + arch + "/" + library + " uid=0 gid=0 mode=0644 type=file",
+            ":" + package.replace("-", "_") + "_library",
+        ),
+    ] + ([(
+        "usr/lib/" + arch + "/krb5/plugins/preauth/spake.so uid=0 gid=0 mode=0644 type=file",
+        ":spake_plugin",
+    )] if package == "libkrb5-3" else [])},
+    force_debug_build = True,
+    mtree = [
+        "usr/lib/" + arch + "/" + library.rsplit(".", 1)[0] + " uid=0 gid=0 mode=0777 type=link link=" + library,
+        "usr/share/doc/" + package + "/copyright uid=0 gid=0 mode=0644 type=file content=$(location @krb5_src//:debian/copyright)",
+    ] + ([
+        "usr/lib/" + arch + "/krb5/plugins/libkrb5 uid=0 gid=0 mode=0755 type=dir",
+        "usr/share/doc/libkrb5-3/README uid=0 gid=0 mode=0644 type=file content=$(location @krb5_src//:README)",
+        "usr/share/doc/libkrb5-3/README.Debian uid=0 gid=0 mode=0644 type=file content=$(location @krb5_src//:debian/README.Debian)",
+    ] if package == "libkrb5-3" else []) + (["etc/gss/mech.d uid=0 gid=0 mode=0755 type=dir"] if package == "libgssapi-krb5-2" else []),
+    target_compatible_with = ["@platforms//cpu:" + {
+        "amd64": "x86_64",
+        "arm64": "aarch64",
+    }[cpu]],
+) for package, library in _LIBRARIES.items() for cpu, arch in [
+    ("amd64", "x86_64-linux-gnu"),
+    ("arm64", "aarch64-linux-gnu"),
+]]
+
+[alias(
+    name = package.replace("-", "_") + "_pkg" + suffix,
+    actual = select({
+        "@platforms//cpu:x86_64": ":" + package.replace("-", "_") + "_pkg_amd64" + suffix,
+        "@platforms//cpu:aarch64": ":" + package.replace("-", "_") + "_pkg_arm64" + suffix,
+    }),
+) for package in _LIBRARIES for suffix in [
+    "",
+    ".debug_symbols",
+]]
+
+py_test(
+    name = "package_test",
+    srcs = ["package_test.py"],
+    args = ["$(location //openssl:libssl3t64_pkg)"] + [value for package in _LIBRARIES for value in [
+        package,
+        "$(location :" + package.replace("-", "_") + "_pkg)",
+        "$(location :" + package.replace("-", "_") + "_pkg.debug_symbols)",
+        "$(location @krb5_src//:debian/" + package + ".symbols)",
+    ]],
+    data = ["//openssl:libssl3t64_pkg"] + [value for package in _LIBRARIES for value in [
+        ":" + package.replace("-", "_") + "_pkg",
+        ":" + package.replace("-", "_") + "_pkg.debug_symbols",
+        "@krb5_src//:debian/" + package + ".symbols",
+    ]],
+    deps = ["//openssl:package_test_utils"],
+)

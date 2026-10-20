@@ -1,10 +1,19 @@
+Subject: [PATCH] Select the OpenSSL crypto implementation for SONiC Kerberos
+Origin: SONiC sonic-fips src/krb5.patch/90-support-openssl-crypto-impl.patch
+Upstream-Status: SONiC build configuration
+
+Use SONiC OpenSSL for Kerberos cryptography, matching the existing FIPS
+package recipe. Refresh only surrounding Debian-rule context for 1.21.3-5:
+the multiarch libdir option was replaced upstream by the LMDB option.
+The added configure flag remains unchanged.
+
 diff --git a/debian/rules b/debian/rules
 index 915528050..cbf03a206 100755
 --- a/debian/rules
 +++ b/debian/rules
-@@ -45,6 +45,7 @@ override_dh_auto_configure:
+@@ -57,6 +57,7 @@ override_dh_auto_configure:
  	--with-system-verto \
- 		--libdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH) \
+ 	--with-lmdb \
  		--sysconfdir=/etc  \
 +		--with-crypto-impl=openssl \
  		--localstatedir=/etc
