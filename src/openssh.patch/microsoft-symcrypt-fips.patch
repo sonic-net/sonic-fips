@@ -1,3 +1,17 @@
+Subject: [PATCH] Initialize and configure logging for the optional SymCrypt engine
+
+When USE_SYMCRYPT_ENGINE is selected, initialize the engine explicitly and
+map OpenSSH log levels to its trace levels. Otherwise retain OpenSSL's normal
+engine/configuration initialization. The current Make recipe leaves the direct
+SymCrypt compile/link options disabled; applying this patch preserves that
+existing conditional behavior.
+
+Origin: https://github.com/sonic-net/sonic-fips/blob/2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6/src/openssh.patch/microsoft-symcrypt-fips.patch
+Upstream-Status: SONiC downstream integration patch
+
+The OpenSSH 10.0p1 context refresh changes only the line after
+ssh_libcrypto_init. All added and removed C lines remain unchanged.
+
 Index: openssh/openbsd-compat/openssl-compat.c
 ===================================================================
 --- openssh.orig/openbsd-compat/openssl-compat.c
@@ -20,7 +34,7 @@ Index: openssh/openbsd-compat/openssl-compat.c
 +#endif /* USE_SYMCRYPT_ENGINE */
  }
  
- #endif /* WITH_OPENSSL */
+ #ifndef HAVE_EVP_DIGESTSIGN
 Index: openssh/log.c
 ===================================================================
 --- openssh.orig/log.c

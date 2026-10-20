@@ -1,0 +1,253 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "configure.sh",
+    "client_test.sh",
+    "sources.bzl",
+])
+
+# The snapshot's public package alias adds Debian libssl transitively. Import
+# only FIDO2 itself so the crypto provider remains the SONiC OpenSSL build.
+alias(
+    name = "fido2",
+    actual = select({
+        "@platforms//cpu:x86_64": "@fido2_amd64//:libfido2_wodeps",
+        "@platforms//cpu:aarch64": "@fido2_arm64//:libfido2_wodeps",
+    }),
+)
+
+_BUILD_ENV = {
+    "AUTOCONF": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/autoconf",
+    "AUTOHEADER": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/autoheader",
+    "PERL": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl",
+    "PKGCONFIG": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/pkgconf",
+    # CcInfo supplies declared include/link flags. Do not consult a host
+    # krb5-config script when pkg-config has no external package metadata.
+    "KRB5CONF": "/nonexistent-krb5-config",
+    "OPENSSL_CONF": "/dev/null",
+}
+
+# All Debian normal-package features stay enabled, including the features used
+# by client programs: libedit, GSSAPI, PKCS#11 and built-in FIDO security keys.
+[configure_make(
+    name = name,
+    args = [
+        "DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
+        "ASKPASS_PROGRAM=/usr/bin/ssh-askpass",
+    ],
+    build_data = ["@sonic_build_infra//tools/build_tools:configure_runtime"] + ([":client_test.sh"] if name == "upstream_tests" else []),
+    configure_command = "bazel-configure",
+    configure_in_place = True,
+    configure_options = [
+        "--prefix=/usr",
+        "--sysconfdir=/etc/ssh",
+        "--libexecdir=/usr/lib/openssh",
+        "--disable-strip",
+        "--with-mantype=doc",
+        "--with-4in6",
+        "--with-privsep-path=/run/sshd",
+        "--with-pid-dir=/run",
+        "ac_cv_func_mkdtemp=no",
+        "PATH_PASSWD_PROG=/usr/bin/passwd",
+        "--with-tcp-wrappers",
+        "--with-pam",
+        "--with-libedit",
+        "--with-kerberos5=$$EXT_BUILD_DEPS$$",
+        "--without-rpath",
+        # Foreign Cc stages the declared transitive shared libraries here.
+        # This is an ld input search path, not a path embedded in the binaries.
+        "--with-ldflags=-Wl,-rpath-link=$$EXT_BUILD_DEPS$$/lib",
+        "--with-ssl-engine",
+        "--with-wtmpdb",
+        "--with-selinux",
+        "--with-audit=linux",
+        "--with-security-key-builtin",
+        "--with-xauth=/usr/bin/xauth",
+        "--with-default-path=/usr/local/bin:/usr/bin:/bin:/usr/games",
+        "--with-superuser-path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    ],
+    env = select({
+        "@platforms//cpu:x86_64": dict(
+            _BUILD_ENV,
+            LD_LIBRARY_PATH = "$$EXT_BUILD_DEPS$$/build/usr/lib/x86_64-linux-gnu:$$EXT_BUILD_DEPS$$/lib",
+        ),
+        "@platforms//cpu:aarch64": dict(
+            _BUILD_ENV,
+            LD_LIBRARY_PATH = "$$EXT_BUILD_DEPS$$/build/usr/lib/aarch64-linux-gnu:$$EXT_BUILD_DEPS$$/lib",
+        ),
+    }),
+    features = ["-sanitize_pwd"],
+    lib_source = "@openssh_src//:sources",
+    out_bin_dir = "usr",
+    out_binaries = [
+        "bin/scp",
+        "bin/sftp",
+        "bin/ssh",
+        "bin/ssh-add",
+        "bin/ssh-agent",
+        "bin/ssh-keygen",
+        "bin/ssh-keyscan",
+        "lib/openssh/ssh-keysign",
+        "lib/openssh/ssh-pkcs11-helper",
+        "lib/openssh/ssh-sk-helper",
+    ],
+    # Output groups use basenames; naming this etc/ssh would hide the ssh ELF.
+    out_data_dirs = [
+        "etc",
+        "usr/share/man",
+    ],
+    out_data_files = ["client-smoke.json"] if name == "upstream_tests" else [],
+    postfix_script = 'cd "$${BUILD_TMPDIR}"\n/bin/sh "$${EXT_BUILD_ROOT}/$(execpath :client_test.sh)" "$${INSTALLDIR}/client-smoke.json"' if name == "upstream_tests" else "",
+    tags = [
+        "manual",
+        "no-cache",
+    ] if name == "upstream_tests" else [],
+    targets = targets,
+    deps = [
+        "//openssl:build",
+        "@openssh_deps//libaudit-dev:libaudit",
+        "@openssh_deps//libcbor-dev:libcbor",
+        "@openssh_deps//libcrypt-dev:libcrypt",
+        "@openssh_deps//libedit-dev:libedit",
+        # Link the source-built OpenSSL above, not this package's libssl-dev
+        # transitive import. Its non-crypto dependencies are explicit here.
+        ":fido2",
+        "@openssh_deps//libkrb5-dev:libkrb5",
+        "@openssh_deps//libpam0g-dev:libpam0g",
+        "@openssh_deps//libselinux1-dev:libselinux1",
+        "@openssh_deps//libudev-dev:libudev",
+        "@openssh_deps//libwrap0-dev:libwrap0",
+        "@openssh_deps//libwtmpdb-dev:libwtmpdb",
+        "@openssh_deps//zlib1g-dev:zlib1g",
+    ],
+) for name, targets in [
+    (
+        "build",
+        [
+            "all",
+            "install-nokeys",
+        ],
+    ),
+    # Debian's original unit/compatibility tests stay outside production builds.
+    (
+        "upstream_tests",
+        [
+            "all",
+            "unit",
+            "compat-tests",
+            "install-nokeys",
+        ],
+    ),
+]]
+
+filegroup(
+    name = "upstream_test_outputs",
+    srcs = [":upstream_tests"],
+    output_group = "gen_dir",
+)
+
+keep_debug_info(
+    name = "upstream_tests_debug",
+    src = ":upstream_test_outputs",
+)
+
+_BINARIES = {
+    "usr/bin/" + name: name
+    for name in [
+        "scp",
+        "sftp",
+        "ssh",
+        "ssh-add",
+        "ssh-agent",
+        "ssh-keygen",
+        "ssh-keyscan",
+    ]
+}
+
+_BINARIES.update({
+    "usr/lib/openssh/" + name: name
+    for name in [
+        "ssh-keysign",
+        "ssh-pkcs11-helper",
+        "ssh-sk-helper",
+    ]
+})
+
+[
+    filegroup(
+        name = name,
+        srcs = [":build"],
+        output_group = name,
+    )
+    for name in _BINARIES.values()
+]
+
+filegroup(
+    name = "installed",
+    srcs = [":build"],
+    output_group = "gen_dir",
+)
+
+# Read configuration from the same build used to split the executable symbols,
+# so packaging does not compile OpenSSH/OpenSSL a second time for a text file.
+keep_debug_info(
+    name = "installed_debug",
+    src = ":installed",
+)
+
+# Debian removes the OpenBSD version tag from installed configuration files.
+genrule(
+    name = "client_configuration",
+    srcs = [":installed_debug"],
+    outs = ["ssh_config"],
+    cmd = "sed '/\\$$OpenBSD:/d' $(location :installed_debug)/etc/ssh/ssh_config > $@",
+)
+
+_DATA = {
+    "usr/bin/ssh-copy-id": ("@openssh_src//:contrib/ssh-copy-id", "0755"),
+    "usr/bin/ssh-argv0": ("@openssh_src//:debian/ssh-argv0", "0755"),
+    "usr/share/apport/package-hooks/openssh-client.py": ("@openssh_src//:debian/openssh-client.apport", "0644"),
+    "usr/lib/systemd/user/ssh-agent.service": ("@openssh_src//:debian/systemd/ssh-agent.service", "0644"),
+    "usr/lib/systemd/user/ssh-agent.socket": ("@openssh_src//:debian/systemd/ssh-agent.socket", "0644"),
+    "usr/lib/tmpfiles.d/openssh-client.conf": ("@openssh_src//:debian/openssh-client.tmpfiles", "0644"),
+    "usr/share/doc/openssh-client/copyright": ("@openssh_src//:debian/copyright", "0644"),
+    "etc/ssh/ssh_config": (":client_configuration", "0644"),
+}
+
+sonic_deploy_tar(
+    name = "openssh_client_pkg",
+    srcs = [source for source, _ in _DATA.values()],
+    binaries = {
+        path + " uid=0 gid=0 mode=" + ("4755" if name == "ssh-keysign" else "0755") + " type=file": ":" + name
+        for path, name in _BINARIES.items()
+    },
+    force_debug_build = True,
+    mtree = [
+        path + " uid=0 gid=0 mode=" + mode + " type=file content=$(location " + source + ")"
+        for path, (source, mode) in _DATA.items()
+    ] + [
+        "etc/ssh/ssh_config.d uid=0 gid=0 mode=0755 type=dir",
+        "usr/lib/systemd/user/graphical-session-pre.target.wants/ssh-agent.service uid=0 gid=0 mode=0777 type=link link=../ssh-agent.service",
+    ],
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["package_test.py"],
+    args = [
+        "$(location :openssh_client_pkg)",
+        "$(location :openssh_client_pkg.debug_symbols)",
+        "$(location @openssh_src//:debian/openssh-client.install)",
+    ],
+    data = [
+        ":openssh_client_pkg",
+        ":openssh_client_pkg.debug_symbols",
+        "@openssh_src//:debian/openssh-client.install",
+    ],
+    deps = ["//openssl:package_test_utils"],
+)
