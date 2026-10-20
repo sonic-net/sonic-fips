@@ -1,0 +1,91 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load("//openssl:build.bzl", "openssl_build")
+
+package(default_visibility = ["//visibility:public"])
+
+_EXTRACT_PLUGINS = """set -euo pipefail
+mkdir -p "$(RULEDIR)/plugins/engines-3" "$(RULEDIR)/plugins/ossl-modules"
+"$(BSDTAR_BIN)" -xOf "$(execpath //symcrypt:runtime)" usr/lib/{triplet}/libsymcryptengine.so > "$(RULEDIR)/plugins/engines-3/symcryptengine.so"
+"$(BSDTAR_BIN)" -xOf "$(execpath //symcrypt:runtime)" usr/lib/{triplet}/ossl-modules/symcryptprovider.so > "$(RULEDIR)/plugins/ossl-modules/symcryptprovider.so"
+"$(BSDTAR_BIN)" -xOf "$(execpath //symcrypt:runtime)" usr/lib/{triplet}/libsymcrypt.so.103.13.0 > "$(RULEDIR)/plugins/libsymcrypt.so.103.13.0"
+ln -s libsymcrypt.so.103.13.0 "$(RULEDIR)/plugins/libsymcrypt.so.103"
+"""
+
+# Copy only the packaged plugin bytes needed by OpenSSL's original test recipe.
+# The integrity-sealed SymCrypt core is copied byte-for-byte, without ELF edits.
+genrule(
+    name = "plugin_inputs",
+    testonly = True,
+    srcs = ["//symcrypt:runtime"],
+    outs = [
+        "plugins/engines-3/symcryptengine.so",
+        "plugins/ossl-modules/symcryptprovider.so",
+        "plugins/libsymcrypt.so.103.13.0",
+        "plugins/libsymcrypt.so.103",
+    ],
+    cmd = select({
+        "@platforms//cpu:" + cpu: _EXTRACT_PLUGINS.format(triplet = triplet)
+        for cpu, triplet in [
+            ("x86_64", "x86_64-linux-gnu"),
+            ("aarch64", "aarch64-linux-gnu"),
+        ]
+    }),
+    toolchains = ["@bsd_tar_toolchains//:resolved_toolchain"],
+    tools = ["@bsd_tar_toolchains//:resolved_toolchain"],
+)
+
+# This downstream test build can depend on both OpenSSL and its plugins;
+# the production core build cannot depend on a plugin that links that core.
+openssl_build(
+    name = "upstream_suite",
+    testonly = True,
+    data = [
+        ":plugin_inputs",
+        ":plugins/libsymcrypt.so.103",
+    ],
+    out_data_files = ["evidence/suite.log"],
+    postfix_script = """set -euo pipefail
+cd "$$BUILD_TMPDIR"
+plugin_core="$$EXT_BUILD_ROOT/$(execpath :plugins/libsymcrypt.so.103)"
+plugin_dir="$${plugin_core%/*}"
+# The declared Perl launcher deliberately clears ambient PERL5LIB. TAP's
+# interpreter hook supplies OpenSSL's declared source modules as explicit -I.
+export SONIC_TEST_PERL="$$EXT_BUILD_ROOT/$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl"
+export SONIC_TEST_PERL_LIB="$$BUILD_TMPDIR/util/perl"
+export HARNESS_PERL="$$BUILD_TMPDIR/sonic-test-perl"
+export HARNESS_JOBS=4
+cat > "$$HARNESS_PERL" <<'SONIC_PERL'
+#!/bin/sh
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Generator: openssl/integration/BUILD.bazel
+exec "$$SONIC_TEST_PERL" -I"$$SONIC_TEST_PERL_LIB" "$$@"
+SONIC_PERL
+chmod +x "$$HARNESS_PERL"
+# OpenSSL's own test wrapper exposes the build directory to its loader.
+# Keep the sealed core there verbatim; do not rely on Perl retaining LD paths.
+cp "$$plugin_dir/libsymcrypt.so.103.13.0" "$$BUILD_TMPDIR/libsymcrypt.so.103.13.0"
+ln -s libsymcrypt.so.103.13.0 "$$BUILD_TMPDIR/libsymcrypt.so.103"
+mkdir -p "$$INSTALLDIR/evidence"
+"$$EXT_BUILD_ROOT/$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/make" -j4 test "libdir=$$plugin_dir" 2>&1 | tee "$$INSTALLDIR/evidence/suite.log"
+""",
+    tags = [
+        "manual",
+        "no-cache",
+    ],
+)
+
+filegroup(
+    name = "suite_log",
+    testonly = True,
+    srcs = [":upstream_suite"],
+    output_group = "suite.log",
+)
+
+py_test(
+    name = "openssl_symcrypt_test",
+    size = "large",
+    srcs = ["suite_test.py"],
+    args = ["$(rootpath :suite_log)"],
+    data = [":suite_log"],
+    main = "suite_test.py",
+)

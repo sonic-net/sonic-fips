@@ -113,6 +113,10 @@ pyelftools_source = use_repo_rule("//symcrypt:sources.bzl", "pyelftools_source")
 
 pyelftools_source(name = "symcrypt_pyelftools")
 
+# Extract the declared runtime TAR for the original OpenSSL vendor suite.
+tar_tools = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(tar_tools, "bsd_tar_toolchains")
+
 apt.install(
     dependency_set = "krb5_deps",
     packages = [
