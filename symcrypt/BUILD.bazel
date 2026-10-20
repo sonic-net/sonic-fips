@@ -1,0 +1,295 @@
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake", "cmake_variant")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:debug_symbols_layer.bzl", "debug_symbols_layer")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//toolchains/gcc:defs.bzl", "bin")
+load(":sealed_runtime.bzl", "sealed_runtime")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "core.CMakeLists.txt",
+    "declared-tools.patch",
+])
+
+py_binary(
+    name = "python",
+    srcs = ["python.py"],
+    deps = ["@symcrypt_pyelftools//:elftools"],
+)
+
+filegroup(
+    name = "provider_platform",
+    srcs = select({
+        "@platforms//cpu:x86_64": ["@symcrypt_openssl_src//:cmake-toolchain/LinuxUserMode-AMD64.cmake"],
+        "@platforms//cpu:aarch64": ["@symcrypt_openssl_src//:cmake-toolchain/LinuxUserMode-ARM64.cmake"],
+    }),
+)
+
+_PROVIDER_CACHE = {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+    "CMAKE_INSTALL_LIBDIR": "lib",
+    "CMAKE_INSTALL_INCLUDEDIR": "include",
+    # Run after project initializes the declared compiler flags: the upstream
+    # CPU file appends to CMAKE_C_FLAGS and must not replace CMAKE_C_FLAGS_INIT.
+    "CMAKE_PROJECT_SymCrypt-OpenSSL_INCLUDE": "$(execpath :provider_platform)",
+    "OPENSSL_ENGINES": "lib",
+    "OPENSSL_PROVIDERS": "lib",
+    "OPENSSL_INCLUDE_DIR": "$$EXT_BUILD_DEPS$$/build/usr/include",
+    "SYMCRYPT_ROOT_DIR": "$$EXT_BUILD_DEPS$$/symcrypt",
+    "SYMCRYPT_LIBRARY": "$$EXT_BUILD_DEPS$$/symcrypt/lib/libsymcrypt.so",
+    # GNU ld must also find libcrypto's declared compression dependencies when
+    # linking the native SslPlay executable. This is a build-only search path.
+    "CMAKE_EXE_LINKER_FLAGS": "-Wl,-rpath-link,$$EXT_BUILD_DEPS$$/lib",
+}
+
+# Native Make leaves this component on GCC; only the core dependency selects
+# Clang. The unchanged upstream platform file supplies its CPU definitions.
+cmake(
+    name = "provider",
+    build_args = ["-j4"],
+    build_data = [":provider_platform"],
+    cache_entries = select({
+        "@platforms//cpu:" + cpu: _PROVIDER_CACHE | {
+            "OPENSSL_CRYPTO_LIBRARY": "$$EXT_BUILD_DEPS$$/build/usr/lib/" + triplet + "/libcrypto.so.3",
+            "OPENSSL_SSL_LIBRARY": "$$EXT_BUILD_DEPS$$/build/usr/lib/" + triplet + "/libssl.so.3",
+        }
+        for cpu, triplet in [
+            ("x86_64", "x86_64-linux-gnu"),
+            ("aarch64", "aarch64-linux-gnu"),
+        ]
+    }),
+    configuration = "Release",
+    features = ["-sanitize_pwd"],
+    lib_name = "symcrypt_openssl",
+    lib_source = "@symcrypt_openssl_src//:sources",
+    out_binaries = ["SslPlay"],
+    out_data_files = [
+        "evidence/provider_compile_commands.json",
+        "evidence/provider_CMakeCache.txt",
+    ],
+    out_shared_libs = [
+        "symcryptengine.so",
+        "symcryptprovider.so",
+    ],
+    postfix_script = """mkdir -p "$$INSTALLDIR/bin" "$$INSTALLDIR/evidence"
+cp "$$BUILD_TMPDIR/test/SslPlay/SslPlay" "$$INSTALLDIR/bin/SslPlay"
+cp "$$BUILD_TMPDIR/compile_commands.json" "$$INSTALLDIR/evidence/provider_compile_commands.json"
+cp "$$BUILD_TMPDIR/CMakeCache.txt" "$$INSTALLDIR/evidence/provider_CMakeCache.txt"
+""",
+    set_file_prefix_map = True,
+    # rules_foreign_cc stages a foreign dependency's install tree, so list its
+    # non-foreign DSO dependencies explicitly for the link-only directory too.
+    deps = [
+        ":core",
+        "//openssl:build",
+        "@openssl_deps//libzstd-dev:libzstd",
+        "@openssl_deps//zlib1g-dev:zlib1g",
+    ],
+)
+
+[
+    filegroup(
+        name = tool,
+        srcs = select({
+            "@platforms//cpu:x86_64": [bin("x86_64", "14.2.0", tool)],
+            "@platforms//cpu:aarch64": [bin("aarch64", "14.2.0", tool)],
+        }),
+    )
+    for tool in [
+        "strip",
+        "objcopy",
+        "ld",
+    ]
+]
+
+# The standalone GNU launchers need their pinned Debian loader and libraries
+# even when this CMake action uses the separate Clang compiler toolchain.
+filegroup(
+    name = "gnu_tool_runtime",
+    srcs = select({
+        "@platforms//cpu:x86_64": ["@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files"],
+        "@platforms//cpu:aarch64": ["@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files"],
+    }),
+)
+
+_CORE_CACHE = {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_STRIP": "$(execpath :strip)",
+    "CMAKE_OBJCOPY": "$(execpath :objcopy)",
+    # Native Clang uses GNU ld. Preserve its export-script semantics while
+    # retaining Clang code generation and the declared SONiC sysroot.
+    "CMAKE_EXE_LINKER_FLAGS": "--ld-path=$(execpath :ld)",
+    "CMAKE_SHARED_LINKER_FLAGS": "--ld-path=$(execpath :ld)",
+    "CMAKE_MODULE_LINKER_FLAGS": "--ld-path=$(execpath :ld)",
+    "Python3_EXECUTABLE": "$(execpath :python)",
+    "SYMCRYPT_FIPS_BUILD": "ON",
+    "SYMCRYPT_FIPS_POSTPROCESS": "ON",
+    "SYMCRYPT_STRIP_BINARY": "ON",
+    "SYMCRYPT_UNIT_TESTS": "ON",
+    "SYMCRYPT_TEST_LEGACY_IMPL": "OFF",
+    "SYMCRYPT_SYMCRUST": "OFF",
+}
+
+cmake_variant(
+    name = "core",
+    build_args = ["-j4"],
+    build_data = [
+        ":python",
+        ":strip",
+        ":objcopy",
+        ":ld",
+        ":gnu_tool_runtime",
+    ],
+    cache_entries = select({
+        "@platforms//cpu:x86_64": _CORE_CACHE | {"SYMCRYPT_TARGET_ARCH": "AMD64"},
+        "@platforms//cpu:aarch64": _CORE_CACHE | {"SYMCRYPT_TARGET_ARCH": "ARM64"},
+    }),
+    configuration = "Release",
+    env = {
+        "SYMCRYPT_BRANCH": "HEAD",
+        "SYMCRYPT_COMMIT_HASH": "286762b7730e2b780678f5ab11fef2b1bad639e0",
+        "SYMCRYPT_COMMIT_TIMESTAMP": "2026-08-05T21:48:57Z",
+    },
+    lib_name = "symcrypt",
+    lib_source = "@symcrypt_src//:sources",
+    out_binaries = ["symcryptunittest"],
+    out_data_files = [
+        "lib/libsymcrypt.so.103",
+        "lib/libsymcrypt.so.103.13.0",
+        "debug/libsymcrypt.so.103.13.0.debug",
+        "evidence/compile_commands.json",
+        "evidence/CMakeCache.txt",
+    ],
+    out_include_dir = "inc",
+    out_shared_libs = ["libsymcrypt.so"],
+    set_file_prefix_map = True,
+    toolchain = select({
+        "@platforms//cpu:x86_64": "@symcrypt_llvm//:cc-toolchain-x86_64-linux",
+        "@platforms//cpu:aarch64": "@symcrypt_llvm//:cc-toolchain-aarch64-linux",
+    }),
+)
+
+[
+    filegroup(
+        name = "built_" + output,
+        srcs = [":" + source],
+        output_group = output,
+    )
+    for source, output in [
+        ("core", "libsymcrypt.so.103.13.0"),
+        ("core", "libsymcrypt.so.103.13.0.debug"),
+        ("core", "symcryptunittest"),
+        ("core", "compile_commands.json"),
+        ("core", "CMakeCache.txt"),
+        ("core", "CMake_logs"),
+        ("provider", "symcryptengine.so"),
+        ("provider", "symcryptprovider.so"),
+        ("provider", "SslPlay"),
+        ("provider", "provider_compile_commands.json"),
+        ("provider", "provider_CMakeCache.txt"),
+    ]
+]
+
+select_file(
+    name = "built_CMake.log",
+    srcs = ":built_CMake_logs",
+    subpath = "symcrypt_foreign_cc/CMake.log",
+)
+
+[
+    keep_debug_info(
+        name = "packaged_" + output,
+        src = ":built_" + output,
+    )
+    for output in [
+        "libsymcrypt.so.103.13.0",
+        "libsymcrypt.so.103.13.0.debug",
+        "symcryptunittest",
+        "compile_commands.json",
+        "CMakeCache.txt",
+        "CMake.log",
+        "provider_compile_commands.json",
+        "provider_CMakeCache.txt",
+    ]
+]
+
+[
+    sonic_deploy_tar(
+        name = "components_" + cpu,
+        # The sealed core is data. Never strip, patch its RPATH, or add a
+        # debuglink after upstream computes the integrity digest.
+        srcs = [
+            ":packaged_libsymcrypt.so.103.13.0",
+            "@symcrypt_openssl_src//:LICENSE",
+            "@symcrypt_src//:upstream/3rdparty/jitterentropy-library/LICENSE.bsd",
+            "@symcrypt_src//:upstream/LICENSE.txt",
+        ],
+        binaries = {
+            "usr/lib/" + triplet + "/libsymcryptengine.so type=file uid=0 gid=0 mode=0755": ":built_symcryptengine.so",
+            "usr/lib/" + triplet + "/ossl-modules/symcryptprovider.so type=file uid=0 gid=0 mode=0755": ":built_symcryptprovider.so",
+        },
+        force_debug_build = True,
+        mtree = [
+            "usr/lib/" + triplet + "/libsymcrypt.so.103.13.0 type=file uid=0 gid=0 mode=0755 content=$(location :packaged_libsymcrypt.so.103.13.0)",
+            "usr/lib/" + triplet + "/libsymcrypt.so.103 type=link uid=0 gid=0 link=libsymcrypt.so.103.13.0",
+            "usr/lib/" + triplet + "/libsymcrypt.so type=link uid=0 gid=0 link=libsymcrypt.so.103",
+            "usr/lib/" + triplet + "/symcryptengine.so type=link uid=0 gid=0 link=libsymcryptengine.so",
+            "usr/lib/" + triplet + "/engines-3/symcryptengine.so type=link uid=0 gid=0 link=../libsymcryptengine.so",
+            "etc/ssl type=dir uid=0 gid=0 mode=0755",
+            "usr/share/doc/symcrypt-openssl/SymCrypt-LICENSE.txt type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/LICENSE.txt)",
+            "usr/share/doc/symcrypt-openssl/LICENSE type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_openssl_src//:LICENSE)",
+            "usr/share/doc/symcrypt-openssl/jitterentropy-LICENSE.bsd type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/3rdparty/jitterentropy-library/LICENSE.bsd)",
+        ],
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+        visibility = ["//visibility:private"],
+    )
+    for cpu, triplet in [
+        ("x86_64", "x86_64-linux-gnu"),
+        ("aarch64", "aarch64-linux-gnu"),
+    ]
+]
+
+sealed_runtime(
+    name = "runtime",
+    core_debug = ":packaged_libsymcrypt.so.103.13.0.debug",
+    tar = select({"@platforms//cpu:" + cpu: ":components_" + cpu for cpu in [
+        "x86_64",
+        "aarch64",
+    ]}),
+)
+
+# Exercise the same automatic provider collection used by OCI debug images.
+debug_symbols_layer(
+    name = "runtime.debug_symbols",
+    image = ":runtime",
+)
+
+py_test(
+    name = "package_test",
+    timeout = "long",
+    srcs = ["package_test.py"],
+    args = ["$(location " + label + ")" for label in [
+        ":runtime",
+        ":runtime.debug_symbols",
+        "//openssl:libssl3t64_pkg",
+        "//openssl:openssl_pkg",
+        ":packaged_libsymcrypt.so.103.13.0",
+        ":packaged_symcryptunittest",
+    ]],
+    data = [
+        ":packaged_libsymcrypt.so.103.13.0",
+        ":packaged_symcryptunittest",
+        ":runtime",
+        ":runtime.debug_symbols",
+        "//openssl:libssl3t64_pkg",
+        "//openssl:openssl_pkg",
+    ],
+    deps = [
+        "//openssl:package_test_utils",
+        "@symcrypt_pyelftools//:elftools",
+    ],
+)

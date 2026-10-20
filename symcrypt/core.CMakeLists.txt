@@ -1,0 +1,41 @@
+# Bazel installs outputs without running the Debian packaging recipe.
+cmake_minimum_required(VERSION 3.13)
+project(SonicSymCrypt LANGUAGES C CXX)
+
+# Upstream deliberately leaves -Wall disabled and sets its own warning policy.
+# Remove only LLVM's three extra convenience warnings; preserve the compiler's
+# defaults and every warning/error option selected by SymCrypt itself.
+foreach(language C CXX)
+    foreach(warning -Wall -Wthread-safety -Wself-assign)
+        string(REPLACE " ${warning} " " " CMAKE_${language}_FLAGS " ${CMAKE_${language}_FLAGS} ")
+    endforeach()
+endforeach()
+if(SYMCRYPT_TARGET_ARCH STREQUAL "ARM64")
+    # Append after project() initializes the declared toolchain flags. Setting
+    # CMAKE_C_FLAGS in the cache would hide its sysroot and header options.
+    string(APPEND CMAKE_C_FLAGS " -mno-outline-atomics")
+endif()
+
+# Upstream generators write buildInfo.h and jitterentropy outputs into its source
+# tree. Give those unchanged generators a private copy inside the build action.
+# copy_directory follows Bazel's source-file symlinks. file(COPY) would preserve
+# them, and Python realpath(__file__) would write generated headers outside the
+# private build directory.
+execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                "${CMAKE_CURRENT_SOURCE_DIR}/upstream" "${CMAKE_BINARY_DIR}/source"
+                RESULT_VARIABLE copy_result)
+if(NOT copy_result EQUAL 0)
+    message(FATAL_ERROR "Unable to prepare the private SymCrypt source tree")
+endif()
+add_subdirectory("${CMAKE_BINARY_DIR}/source" "${CMAKE_BINARY_DIR}/build")
+
+# Copy the sealed ELF verbatim; install(TARGETS) could adjust its RPATH after the
+# integrity digest has been computed. Keep upstream's pre-strip symbols separate.
+install(PROGRAMS "${CMAKE_BINARY_DIR}/module/generic/libsymcrypt.so.103.13.0" DESTINATION lib)
+install(FILES "${CMAKE_BINARY_DIR}/module/generic/libsymcrypt.so"
+              "${CMAKE_BINARY_DIR}/module/generic/libsymcrypt.so.103" DESTINATION lib)
+install(FILES "${CMAKE_BINARY_DIR}/module/generic/.debug/libsymcrypt.so.103.13.0"
+        DESTINATION debug RENAME libsymcrypt.so.103.13.0.debug)
+install(DIRECTORY "${CMAKE_BINARY_DIR}/source/inc/" DESTINATION inc)
+install(PROGRAMS "${CMAKE_BINARY_DIR}/exe/symcryptunittest" DESTINATION bin)
+install(FILES "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_BINARY_DIR}/CMakeCache.txt" DESTINATION evidence)

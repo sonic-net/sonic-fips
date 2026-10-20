@@ -1,0 +1,10 @@
+# A downstream module must consume the complete public runtime/debug API.
+module(name = "symcrypt_consumer")
+
+bazel_dep(name = "sonic-fips", version = "0.0.2", repo_name = "sonic_fips")
+bazel_dep(name = "sonic-build-infra", version = "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3", repo_name = "sonic_build_infra")
+
+local_path_override(
+    module_name = "sonic-fips",
+    path = "../../..",
+)
