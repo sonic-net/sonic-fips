@@ -1,1 +1,6 @@
 target*
+/bazel-*
+MODULE.bazel.lock
+__pycache__/
+artifacts/
+/_ci/

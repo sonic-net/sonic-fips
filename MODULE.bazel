@@ -1,0 +1,56 @@
+module(
+    name = "sonic-fips",
+    version = "0.0.1",
+    bazel_compatibility = [
+        ">=8.5.1",
+        "<=8.5.1",
+    ],
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.6")
+bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3", repo_name = "sonic_build_infra")
+bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+
+single_version_override(
+    module_name = "rules_cc",
+    version = "0.2.20",
+)
+
+single_version_override(
+    module_name = "tar.bzl",
+    version = "0.10.5-sonic.1",
+)
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+register_toolchains("@gcc_toolchains//:all")
+
+register_toolchains(
+    "@sonic_build_infra//tools/build_tools:make_toolchain",
+    "@sonic_build_infra//tools/build_tools:m4_toolchain",
+    "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain",
+)
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "openssl_deps",
+    packages = [
+        "libzstd-dev",
+        "zlib1g-dev",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "openssl_deps")
+
+openssl_source = use_repo_rule("//openssl:sources.bzl", "openssl_source")
+
+openssl_source(name = "openssl_src")
