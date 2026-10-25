@@ -1,24 +1,20 @@
-# Runtime package metadata
+# Generated FIPS package metadata
 
-`//:runtime_packages.json` describes the Debian package identities represented by
-this module's source-built runtime TARs in SONiC Trixie images. An image consumes
-the metadata with the corresponding TAR and the selected `MODULE.bazel`. For
-example, it can record the library's version and dependencies without copying
-those facts into its own package inventory.
+`//:runtime_packages.json` combines generated metadata from OpenSSL, Kerberos,
+OpenSSH and SymCrypt. Each component's BUILD file maps Debian package names to
+its existing runtime TARs. Package fields come from the same prepared Debian
+control and changelog files used by that source recipe. The prepared changelogs
+apply the existing Makefile's `+fips` version suffix; no second package version
+or dependency list is maintained here.
 
-The schema is `1`; `module` names the Bazel source module, and `packages` maps
-Debian package names to `runtime_target` (a label relative to this repository)
-and `control_fields`. Keep these fields aligned with the source package's
-version, runtime dependencies and selected features when changing the producer.
-The image supplies its required paths/modes separately.
+SymCrypt already has a finalized Debian control file containing its version, so
+that existing file is used directly. The metadata action still calculates native
+library requirements from its actual TAR. Source-built dependencies supply
+their generated library metadata; pinned APT dependencies supply their package
+controls and payloads. These target libraries are separate from execution tools.
 
-There is deliberately no frozen source commit, machine architecture, installed
-size, conffile checksum or installed status in this file. The consuming rule
-checks the actual TAR target and payload hash and reads the selected module
-version to record source provenance. It determines the target architecture and
-installation state from the build and image. A module version with a commit
-suffix identifies that source commit; a plain version is not an exact Git SHA.
-
-This metadata does not create a DEB, run maintainer scripts or install a package.
-The image owner must still preserve and validate required installation behavior.
-The supported consumer configuration is SONiC Trixie on AMD64 and ARM64.
+The output follows the selected AMD64/ARM64 build. The image consumes this JSON,
+the corresponding runtime TARs and selected MODULE declaration, validating the
+owner targets and recording the actual payload hashes. Generating metadata does
+not build a Debian package or run installation scripts. Legacy Make recipes are
+unchanged.

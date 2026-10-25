@@ -10,7 +10,7 @@ import platform
 import shutil
 import subprocess
 
-from tools.bazel.ci import audit, command, retain_resolution
+from tools.bazel.ci import audit, command, retain_resolution, retain_runtime_metadata
 
 TARGETS = ["//openssh:openssh_client_pkg", "//openssh:openssh_client_pkg.debug_symbols"]
 GENERATED = {"notice": "AUTO-GENERATED. DO NOT EDIT MANUALLY.", "generator": "openssh/ci.py"}
@@ -50,7 +50,7 @@ def main():
              "--jobs=4", *args.bazel_arg]
     try:
         with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-            subprocess.run(["bazel", "aquery", "deps(set(//openssh:package_test //openssh:upstream_tests_debug))",
+            subprocess.run(["bazel", "aquery", "deps(set(//openssh:package_test //openssh:upstream_tests_debug //openssh:runtime_packages.json))",
                             *flags, "--include_file_write_contents", "--output=jsonproto"],
                            stdout=stdout, stderr=stderr, check=True)
         write_json(output / "audit.json", audit(json.loads((output / "actions.json").read_text())))
@@ -69,6 +69,7 @@ def main():
         command(["bazel", "test", "//openssh:package_test", *flags, "--test_output=errors",
                  "--nocache_test_results", "--build_event_json_file=" + str(output / "package-events.json")],
                 output / "package-test.log")
+        metadata = retain_runtime_metadata(output, "openssh", flags)
         packages = []
         for target in TARGETS:
             files = subprocess.check_output(["bazel", "cquery", target, *flags, "--output=files"], text=True).splitlines()
@@ -89,6 +90,7 @@ def main():
         write_json(output / "result.json", {
             "tested_commit": checkout, "pull_request_head": os.environ.get("CI_HEAD_SHA"),
             "working_tree_dirty": dirty, "machine": platform.machine(), "architecture": args.architecture,
+            "runtime_package_metadata": metadata,
             "packages": packages, "upstream_unit_and_compatibility_tests": "passed",
             "private_client_agent_smoke": "passed", "installed_package_test": "passed",
             "debug_pairs": 10,

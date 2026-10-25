@@ -10,7 +10,7 @@ import platform
 import shutil
 import subprocess
 
-from ci import audit, command, retain_resolution
+from ci import audit, command, retain_resolution, retain_runtime_metadata
 
 
 PACKAGES = ["runtime", "runtime.debug_symbols"]
@@ -33,7 +33,7 @@ def main():
     flags = [f"--platforms=@sonic_build_infra//platforms:{machine}_trixie",
              f"--host_platform=@sonic_build_infra//platforms:{machine}_trixie", "--jobs=4", *args.bazel_arg]
     with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-        query = "deps(set(//symcrypt:package_test " + " ".join(ARTIFACT_TARGETS) + "))"
+        query = "deps(set(//symcrypt:package_test //symcrypt:runtime_packages.json " + " ".join(ARTIFACT_TARGETS) + "))"
         subprocess.run(["bazel", "aquery", query, *flags,
                         "--include_file_write_contents", "--output=jsonproto"], stdout=stdout, stderr=stderr, check=True)
     (output / "audit.json").write_text(json.dumps(audit(json.loads((output / "actions.json").read_text())), indent=2) + "\n")
@@ -54,6 +54,7 @@ def main():
     # cquery reports configured paths without building them. Evidence outputs
     # are not all dependencies of package_test, so materialize them explicitly.
     command(["bazel", "build", *ARTIFACT_TARGETS, *flags], output / "artifact-build.log")
+    metadata = retain_runtime_metadata(output, "symcrypt", flags)
     packages = []
     for target in PACKAGES:
         files = subprocess.check_output(["bazel", "cquery", "//symcrypt:" + target, *flags, "--output=files"], text=True).splitlines()
@@ -91,6 +92,7 @@ def main():
         "_generated": {"notice": "AUTO-GENERATED. DO NOT EDIT MANUALLY.", "generator": "tools/bazel/symcrypt_ci.py"},
         "tested_commit": revision, "pull_request_head": os.environ.get("CI_HEAD_SHA"),
         "architecture": args.architecture, "packages": packages,
+        "runtime_package_metadata": metadata,
         "installed_package_test": "passed", "certification_claim": False,
         "scope": "native core unit tests, sealed-byte preservation, integrity rejection, matching symbols, source OpenSSL provider and engine",
     }, indent=2) + "\n")

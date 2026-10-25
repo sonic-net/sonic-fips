@@ -28,6 +28,22 @@ def command(args, log):
         raise SystemExit(f"Command failed ({result.returncode}); see {log}")
 
 
+def retain_runtime_metadata(output, component, flags):
+    """Build the package inventory from the same configured runtime TARs."""
+    target = "//" + component + ":runtime_packages.json"
+    command(["bazel", "build", target, *flags], output / "metadata-build.log")
+    files = subprocess.check_output(["bazel", "cquery", target, *flags, "--output=files"], text=True).splitlines()
+    if len(files) != 1:
+        raise SystemExit(f"Expected one generated metadata file from {target}: {files}")
+    destination = output / "runtime_packages.json"
+    shutil.copyfile(files[0], destination)
+    document = json.loads(destination.read_text())
+    if document.get("schema") != 1 or document.get("module") != "sonic-fips" or not document.get("packages"):
+        raise SystemExit("Generated package metadata lacks its source owner and packages")
+    return {"target": target, "file": destination.name,
+            "sha256": hashlib.sha256(destination.read_bytes()).hexdigest()}
+
+
 def retain_resolution(output, architecture, bazel_args):
     command(["bazel", "mod", "graph", "--lockfile_mode=update", *bazel_args],
             output / "module-graph.txt")
@@ -89,7 +105,7 @@ def main():
         *args.bazel_arg,
     ]
     with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-        subprocess.run(["bazel", "aquery", "deps(//openssl:package_test)", *flags,
+        subprocess.run(["bazel", "aquery", "deps(set(//openssl:package_test //openssl:runtime_packages.json))", *flags,
                         "--include_file_write_contents", "--output=jsonproto"],
                        stdout=stdout, stderr=stderr, check=True)
     report = audit(json.loads((output / "actions.json").read_text()))
@@ -98,6 +114,7 @@ def main():
     command(["bazel", "test", "//openssl:package_test", *flags, "--test_output=errors",
              "--nocache_test_results", "--build_event_json_file=" + str(output / "events.json")],
             output / "test.log")
+    metadata = retain_runtime_metadata(output, "openssl", flags)
     packages = []
     for target in TARGETS:
         files = subprocess.check_output(["bazel", "cquery", target, *flags, "--output=files"], text=True).splitlines()
@@ -118,6 +135,7 @@ def main():
         "machine": platform.machine(),
         "architecture": args.architecture,
         "packages": packages,
+        "runtime_package_metadata": metadata,
         "installed_package_test": "passed",
         "full_openssl_provider_suite": "pending separate source-built SymCrypt integration",
     }, indent=2) + "\n")

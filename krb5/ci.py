@@ -10,7 +10,7 @@ import platform
 import shutil
 import subprocess
 
-from tools.bazel.ci import audit, command, retain_resolution
+from tools.bazel.ci import audit, command, retain_resolution, retain_runtime_metadata
 
 TARGETS = ["//krb5:" + name + "_pkg" + suffix for name in ["libk5crypto3", "libkrb5support0", "libkrb5_3", "libgssapi_krb5_2"] for suffix in ["", ".debug_symbols"]]
 GENERATED = {"notice": "AUTO-GENERATED. DO NOT EDIT MANUALLY.", "generator": "krb5/ci.py"}
@@ -50,7 +50,7 @@ def main():
              "--jobs=4", *args.bazel_arg]
     try:
         with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-            subprocess.run(["bazel", "aquery", "deps(set(//krb5:package_test //krb5:crypto_tests_debug))",
+            subprocess.run(["bazel", "aquery", "deps(set(//krb5:package_test //krb5:crypto_tests_debug //krb5:runtime_packages.json))",
                             *flags, "--include_file_write_contents", "--output=jsonproto"],
                            stdout=stdout, stderr=stderr, check=True)
         write_json(output / "audit.json", audit(json.loads((output / "actions.json").read_text())))
@@ -70,6 +70,7 @@ def main():
         command(["bazel", "test", "//krb5:package_test", *flags, "--test_output=errors",
                  "--nocache_test_results", "--build_event_json_file=" + str(output / "package-events.json")],
                 output / "package-test.log")
+        metadata = retain_runtime_metadata(output, "krb5", flags)
         packages = []
         for target in TARGETS:
             files = subprocess.check_output(["bazel", "cquery", target, *flags, "--output=files"], text=True).splitlines()
@@ -90,6 +91,7 @@ def main():
         write_json(output / "result.json", {
             "tested_commit": checkout, "pull_request_head": os.environ.get("CI_HEAD_SHA"),
             "working_tree_dirty": dirty, "machine": platform.machine(), "architecture": args.architecture,
+            "runtime_package_metadata": metadata,
             "packages": packages, "upstream_crypto_tests": "passed",
             "installed_package_test": "passed",
             "debug_pairs": 5,

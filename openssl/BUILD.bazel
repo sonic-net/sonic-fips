@@ -1,5 +1,6 @@
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 load("@tar.bzl//tar:mtree.bzl", "mtree_mutate", "mtree_spec")
 load("@tar.bzl//tar:tar.bzl", "tar")
@@ -203,4 +204,24 @@ py_test(
         ":openssl_pkg",
         ":openssl_pkg.debug_symbols",
     ],
+)
+
+# Package fields and versions come from the existing Debian recipe.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@openssl_deps//" + package + ":data": "@openssl_deps//" + package + ":control"
+        for package in [
+            "libzstd1",
+            "zlib1g",
+        ]
+    },
+    changelog = "@openssl_src//:debian/changelog",
+    control = "@openssl_src//:debian/control",
+    packages = {
+        "libssl3t64": "//openssl:libssl3t64_pkg",
+        "libssl-dev": "//openssl:libssl_dev_pkg",
+        "openssl": "//openssl:openssl_pkg",
+    },
+    symbols = {"libssl3t64": "@openssl_src//:debian/libssl3t64.symbols"},
 )
