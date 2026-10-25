@@ -1,5 +1,7 @@
 """Fetch the OpenSSH source associated with SONiC's exact Debian git pin."""
 
+load("//:tools/bazel/source_version.bzl", "fips_changelog")
+
 _PATCHES = [
     "0001-Put-style-as-line-number-to-ssh-session-environment-.patch",
     "0002-Revert-commit-69334996-make-sshd_config-ClientAliveC.patch",
@@ -56,6 +58,9 @@ def _openssh_source_impl(ctx):
         "sonic_patches": selected,
         "debian_patches": debian_patches,
     }) + "\n")
+
+    # Match Makefile before deriving package versions or ${binary:Version}.
+    fips_changelog(ctx)
     ctx.file("BUILD.bazel", """# AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Generator: sonic-fips //openssh:sources.bzl
 filegroup(
@@ -64,7 +69,7 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 exports_files([
-    "source.json", "debian/rules", "debian/openssh-client.install",
+    "debian/control", "debian/changelog", "source.json", "debian/rules", "debian/openssh-client.install",
     "contrib/ssh-copy-id", "debian/ssh-argv0", "debian/openssh-client.apport",
     "debian/systemd/ssh-agent.service", "debian/systemd/ssh-agent.socket",
     "debian/copyright", "debian/openssh-client.tmpfiles",

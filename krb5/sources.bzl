@@ -1,5 +1,7 @@
 """Prepare the Debian Krb5 source version selected by SONiC's package recipe."""
 
+load("//:tools/bazel/source_version.bzl", "fips_changelog")
+
 _DEBIAN_PATCHES = [
     "debian-local/0001-Debian-HURD-compatibility.patch",
     "debian-local/0002-debian-Handle-multi-arch-paths-in-krb5-config.patch",
@@ -60,9 +62,12 @@ def _krb5_source_impl(ctx):
         "sonic_patches": ["90-support-openssl-crypto-impl.patch", "fix-test-output.patch", "fix-running-in-container.patch"],
         "crypto_implementation": "openssl",
     }) + "\n")
+
+    # Match Makefile before deriving package versions or ${binary:Version}.
+    fips_changelog(ctx)
     ctx.file("BUILD.bazel", """# AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Generator: krb5/sources.bzl
-exports_files(["source.json", "debian/rules", "debian/libk5crypto3.install", "debian/libk5crypto3.symbols", "debian/copyright", "README", "debian/README.Debian", "debian/libkrb5support0.symbols", "debian/libkrb5-3.symbols", "debian/libgssapi-krb5-2.symbols"])
+exports_files(["debian/control", "debian/changelog", "source.json", "debian/rules", "debian/libk5crypto3.install", "debian/libk5crypto3.symbols", "debian/copyright", "README", "debian/README.Debian", "debian/libkrb5support0.symbols", "debian/libkrb5-3.symbols", "debian/libgssapi-krb5-2.symbols"])
 """)
     ctx.file("src/BUILD.bazel", """# AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Generator: krb5/sources.bzl

@@ -41,7 +41,7 @@ jobs:
           repository-cache: true
           disk-cache: openssl-symcrypt-${{ matrix.architecture }}
           cache-version: "8.5.1"
-      - name: Record maintained registry inputs
+      - name: Select and record registry inputs
         run: python3 -B tools/bazel/registry_inputs.py artifacts/openssl-symcrypt
       - name: Run the original vendor suite with the declared plugins
         env:
@@ -53,6 +53,7 @@ jobs:
           test -z "$(git -c safe.directory="$GITHUB_WORKSPACE" ls-files MODULE.bazel.lock)"
           git -c safe.directory="$GITHUB_WORKSPACE" check-ignore MODULE.bazel.lock
           python3 -B -m openssl.integration.ci --architecture '${{ matrix.architecture }}' --artifacts artifacts/openssl-symcrypt
+          git -c safe.directory="$GITHUB_WORKSPACE" restore .bazelrc
           git -c safe.directory="$GITHUB_WORKSPACE" diff --exit-code
       - name: Upload original suite logs and dependency evidence
         if: always()

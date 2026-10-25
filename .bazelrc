@@ -6,3 +6,6 @@ common --lockfile_mode=update
 build --copt=-g
 build --strip=never
 test --test_output=errors
+
+# Materialize cached kernel tool files through their original directory aliases.
+build --remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$

@@ -3,6 +3,7 @@ load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake", "cmake_variant")
 load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
 load("@sonic_build_infra//oci:debug_symbols_layer.bzl", "debug_symbols_layer")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 load("@sonic_build_infra//toolchains/gcc:defs.bzl", "bin")
 load(":sealed_runtime.bzl", "sealed_runtime")
@@ -292,4 +293,14 @@ py_test(
         "//openssl:package_test_utils",
         "@symcrypt_pyelftools//:elftools",
     ],
+)
+
+# Package fields and versions come from the existing Debian recipe.
+runtime_packages(
+    name = "runtime_packages.json",
+    control = "//:src/SymCrypt-OpenSSL-Debian/debian/control",
+    dependencies = ["//openssl:runtime_packages.json"],
+    packages = {
+        "symcrypt-openssl": "//symcrypt:runtime",
+    },
 )

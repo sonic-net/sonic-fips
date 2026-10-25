@@ -1,6 +1,7 @@
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 
 package(default_visibility = ["//visibility:public"])
@@ -198,4 +199,34 @@ py_test(
         "@krb5_src//:debian/" + package + ".symbols",
     ]],
     deps = ["//openssl:package_test_utils"],
+)
+
+# Package fields and versions come from the existing Debian recipe.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@krb5_deps//" + package + ":data": "@krb5_deps//" + package + ":control"
+        for package in [
+            "libcom-err2",
+            "libkeyutils1",
+        ]
+    },
+    changelog = "@krb5_src//:debian/changelog",
+    control = "@krb5_src//:debian/control",
+    dependencies = ["//openssl:runtime_packages.json"],
+    packages = {
+        "libk5crypto3": "//krb5:libk5crypto3_pkg",
+        "libkrb5support0": "//krb5:libkrb5support0_pkg",
+        "libkrb5-3": "//krb5:libkrb5_3_pkg",
+        "libgssapi-krb5-2": "//krb5:libgssapi_krb5_2_pkg",
+    },
+    symbols = {
+        package: "@krb5_src//:debian/" + package + ".symbols"
+        for package in [
+            "libk5crypto3",
+            "libkrb5support0",
+            "libkrb5-3",
+            "libgssapi-krb5-2",
+        ]
+    },
 )

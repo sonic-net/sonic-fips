@@ -1,6 +1,6 @@
 module(
     name = "sonic-fips",
-    version = "0.0.2",
+    version = "0.0.3",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -10,10 +10,10 @@ module(
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "rules_cc", version = "0.2.20")
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.6")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
 bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
 bazel_dep(name = "rules_python", version = "1.9.0")
-bazel_dep(name = "sonic-build-infra", version = "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14", repo_name = "sonic_build_infra")
 bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
 
 single_version_override(
@@ -42,6 +42,8 @@ apt.install(
     dependency_set = "openssl_deps",
     packages = [
         "libzstd-dev",
+        "libzstd1",
+        "zlib1g",
         "zlib1g-dev",
     ],
     suites = [
@@ -60,16 +62,29 @@ apt.install(
     dependency_set = "openssh_deps",
     packages = [
         "libaudit-dev",
+        "libaudit1",
+        "libcap-ng0",
         "libcbor-dev",
+        "libcbor0.10",
         "libcrypt-dev",
+        "libcrypt1",
         "libedit-dev",
+        "libedit2",
+        "libfido2-1",
         "libfido2-dev",
         "libkrb5-dev",
+        "libpam0g",
         "libpam0g-dev",
+        "libselinux1",
         "libselinux1-dev",
+        "libtinfo6",
         "libudev-dev",
+        "libudev1",
+        "libwrap0",
         "libwrap0-dev",
         "libwtmpdb-dev",
+        "libwtmpdb0",
+        "zlib1g",
         "zlib1g-dev",
     ],
     suites = [
@@ -122,7 +137,9 @@ apt.install(
     packages = [
         "comerr-dev",
         "libcmocka-dev",
+        "libcom-err2",
         "libkeyutils-dev",
+        "libkeyutils1",
         "libldap-dev",
         "liblmdb-dev",
         "libsasl2-dev",

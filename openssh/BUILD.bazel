@@ -1,6 +1,7 @@
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 
 package(default_visibility = ["//visibility:public"])
@@ -250,4 +251,36 @@ py_test(
         "@openssh_src//:debian/openssh-client.install",
     ],
     deps = ["//openssl:package_test_utils"],
+)
+
+# Package fields and versions come from the existing Debian recipe.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@openssh_deps//" + package + ":data": "@openssh_deps//" + package + ":control"
+        for package in [
+            "libaudit1",
+            "libcap-ng0",
+            "libcbor0.10",
+            "libcrypt1",
+            "libedit2",
+            "libfido2-1",
+            "libpam0g",
+            "libselinux1",
+            "libtinfo6",
+            "libudev1",
+            "libwrap0",
+            "libwtmpdb0",
+            "zlib1g",
+        ]
+    },
+    changelog = "@openssh_src//:debian/changelog",
+    control = "@openssh_src//:debian/control",
+    dependencies = [
+        "//openssl:runtime_packages.json",
+        "//krb5:runtime_packages.json",
+    ],
+    packages = {
+        "openssh-client": "//openssh:openssh_client_pkg",
+    },
 )
