@@ -223,8 +223,13 @@ _DATA = {
 sonic_deploy_tar(
     name = "openssh_client_pkg",
     srcs = [source for source, _ in _DATA.values()],
+    # SONiC reserves GID 104 for _ssh; consumers preserve these TAR owners.
     binaries = {
-        path + " uid=0 gid=0 mode=" + ("4755" if name == "ssh-keysign" else "0755") + " type=file": ":" + name
+        "{} uid=0 gid={} mode={} type=file".format(
+            path,
+            104 if name == "ssh-agent" else 0,
+            {"ssh-agent": "2755", "ssh-keysign": "4755"}.get(name, "0755"),
+        ): ":" + name
         for path, name in _BINARIES.items()
     },
     force_debug_build = True,
@@ -233,6 +238,7 @@ sonic_deploy_tar(
         for path, (source, mode) in _DATA.items()
     ] + [
         "etc/ssh/ssh_config.d uid=0 gid=0 mode=0755 type=dir",
+        "etc/systemd/user/sockets.target.wants/ssh-agent.socket uid=0 gid=0 mode=0777 type=link link=/lib/systemd/user/ssh-agent.socket",
         "usr/lib/systemd/user/graphical-session-pre.target.wants/ssh-agent.service uid=0 gid=0 mode=0777 type=link link=../ssh-agent.service",
     ],
 )

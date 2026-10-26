@@ -48,7 +48,9 @@ def main():
         debug_entries = unpack_files(sys.argv[2], symbols)
         actual_files = {name for name, member in entries.items() if member.isfile()}
         assert actual_files == expected_files, (actual_files ^ expected_files)
-        assert all(member.uid == member.gid == 0 for member in entries.values())
+        for name, member in entries.items():
+            expected_gid = 104 if name == "usr/bin/ssh-agent" else 0
+            assert (member.uid, member.gid) == (0, expected_gid), (name, member.uid, member.gid)
         binaries = {name for name in actual_files if (root / name).read_bytes().startswith(b"\x7fELF")}
         assert binaries == expected_binaries and len(binaries) == 10
         for name in sorted(binaries):
@@ -56,7 +58,7 @@ def main():
             header = binary.read_bytes()[:20]
             assert header[:6] == b"\x7fELF\x02\x01", name
             assert struct.unpack_from("<HH", header, 16) == (3, machine), name
-            expected_mode = 0o4755 if name.endswith("/ssh-keysign") else 0o755
+            expected_mode = {"ssh-agent": 0o2755, "ssh-keysign": 0o4755}.get(binary.name, 0o755)
             assert entries[name].mode == expected_mode, (name, entries[name].mode)
             check_symbols(binary, symbols, scratch)
         debug_files = [name for name, member in debug_entries.items() if member.isfile()]
@@ -64,6 +66,9 @@ def main():
         assert entries["etc/ssh/ssh_config.d"].isdir()
         link = entries["usr/lib/systemd/user/graphical-session-pre.target.wants/ssh-agent.service"]
         assert link.issym() and link.linkname == "../ssh-agent.service"
+        socket_link = entries["etc/systemd/user/sockets.target.wants/ssh-agent.socket"]
+        assert socket_link.issym() and socket_link.linkname == "/lib/systemd/user/ssh-agent.socket"
+        assert socket_link.mode == 0o777
         assert "$OpenBSD:" not in (root / "etc/ssh/ssh_config").read_text()
         tmpfiles = "usr/lib/tmpfiles.d/openssh-client.conf"
         assert entries[tmpfiles].mode == 0o644
