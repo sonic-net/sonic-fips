@@ -39,14 +39,21 @@ documentation are outside this runtime-only output. OCI consumers add this TAR
 directly and add its matching symbols to the debug image. No DEB generation or
 Debian metadata helpers are required.
 
-The TAR preserves root ownership and `ssh-keysign` mode `4755`. Image assembly
-must also supply the effects of Debian's client post-install script: retain or
-create the `_ssh` group, assign its image-specific GID to `usr/bin/ssh-agent`,
-and set mode `2755` (or preserve an intentional existing permission override).
-The image owns group allocation, so the component TAR leaves `ssh-agent` at
-root:root `0755`; extracting it alone does not complete that installation step.
-Keep the shipped user units and tmpfiles rule, which excludes `/tmp/ssh-*` from
-cleanup. No host account or service is modified by this build.
+The TAR carries the SONiC Syncd client installation metadata: `usr/bin/ssh-agent`
+has mode `2755`, uid 0 and gid 104, the `_ssh` group in that image. All other
+entries remain root:root; `ssh-keysign` keeps mode `4755` and the remaining ELF
+programs keep `0755`. Image consumers must provide `_ssh` with GID 104 and
+preserve these numeric owners and mode bits when adding the TAR. The TAR does
+not allocate accounts, so an image using a different `_ssh` GID needs an
+explicitly reviewed integration change.
+
+The producer also enables the shipped user socket through
+`etc/systemd/user/sockets.target.wants/ssh-agent.socket`, pointing to
+`/lib/systemd/user/ssh-agent.socket`, as in the SONiC image. Consumers provide
+the merged-/usr `/lib` alias; the target unit is shipped under `usr/lib`.
+The existing graphical-session service link and tmpfiles rule, which excludes
+`/tmp/ssh-*` from cleanup, remain in the TAR. No host account or service is
+modified by this build.
 
 This path assembles a fresh image. It does not perform Debian package upgrades,
 configuration-file merging, removal or purge, and it must not invent installed
@@ -60,7 +67,9 @@ Use the native Debian Trixie platform and declared compiler selected by
 `//openssh:openssh_client_pkg.debug_symbols` for the runtime and matching symbols.
 `//openssh:package_test` compares the installed client files with Debian's
 manifest, checks all ten native ELF programs and their symbol pairs, and asks
-GDB to locate source lines in `ssh` and `ssh-keygen`.
+GDB to locate source lines in `ssh` and `ssh-keygen`. It checks the raw TAR's
+numeric owners, permission bits and socket enablement link before any consumer
+can rewrite their metadata.
 
 `//openssh:upstream_tests_debug` runs the original `unit` and `compat-tests`
 targets, then checks the built clients with a temporary key and a private
