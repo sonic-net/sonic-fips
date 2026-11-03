@@ -15,6 +15,7 @@ exports_files([
     "core.CMakeLists.txt",
     "declared-tools.patch",
     "0002-preserve-assembly-flags.patch",
+    "0003-build-timestamp.patch",
 ])
 
 py_binary(
@@ -118,6 +119,7 @@ cmake_variant(
         "SYMCRYPT_BRANCH": "HEAD",
         "SYMCRYPT_COMMIT_HASH": "286762b7730e2b780678f5ab11fef2b1bad639e0",
         "SYMCRYPT_COMMIT_TIMESTAMP": "2026-08-05T21:48:57Z",
+        "SOURCE_DATE_EPOCH": "1785966537",
     },
     lib_name = "symcrypt",
     lib_source = "@symcrypt_src//:sources",
@@ -267,4 +269,17 @@ runtime_packages(
     packages = {
         "symcrypt-openssl": "//symcrypt:runtime",
     },
+)
+
+py_test(
+    name = "timestamp_test",
+    srcs = ["timestamp_test.py"],
+    args = ["$(location @symcrypt_src//:upstream/scripts/version.py)"],
+    data = [
+        "@symcrypt_src//:upstream/conf/buildInfo.h.in",
+        "@symcrypt_src//:upstream/conf/symcrypt_internal_shared.inc.in",
+        "@symcrypt_src//:upstream/scripts/devops_utils.py",
+        "@symcrypt_src//:upstream/scripts/version.py",
+        "@symcrypt_src//:upstream/version.json",
+    ],
 )

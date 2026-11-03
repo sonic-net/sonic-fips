@@ -28,19 +28,29 @@ def _core_impl(ctx):
     ctx.file(common, ctx.read(common).replace("\r\n", "\n"))
     ctx.patch(ctx.attr.tools_patch, strip = 1)
     ctx.patch(ctx.attr.assembly_patch, strip = 1)
+    ctx.patch(ctx.attr.timestamp_patch, strip = 1)
     ctx.file("CMakeLists.txt", _NOTICE + ctx.read(ctx.attr.cmake))
     ctx.file("BUILD.bazel", _NOTICE + """filegroup(
     name = "sources",
     srcs = glob(["**"], exclude = ["BUILD.bazel"]),
     visibility = ["//visibility:public"],
 )
-exports_files(["upstream/LICENSE.txt", "upstream/3rdparty/jitterentropy-library/LICENSE.bsd"])
+exports_files([
+    "upstream/LICENSE.txt",
+    "upstream/3rdparty/jitterentropy-library/LICENSE.bsd",
+    "upstream/scripts/version.py",
+    "upstream/scripts/devops_utils.py",
+    "upstream/version.json",
+    "upstream/conf/buildInfo.h.in",
+    "upstream/conf/symcrypt_internal_shared.inc.in",
+])
 """)
 
 symcrypt_source = repository_rule(
     implementation = _core_impl,
     attrs = {
         "assembly_patch": attr.label(default = "//symcrypt:0002-preserve-assembly-flags.patch"),
+        "timestamp_patch": attr.label(default = "//symcrypt:0003-build-timestamp.patch"),
         "tools_patch": attr.label(default = "//symcrypt:declared-tools.patch"),
         "cmake": attr.label(default = "//symcrypt:core.CMakeLists.txt"),
     },

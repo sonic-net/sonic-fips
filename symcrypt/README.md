@@ -80,8 +80,13 @@ provider. Its `runtime.debug_symbols` target uses the standard OCI
 `debug_symbols_layer`, so downstream images collect the core symbols through the
 same API as other native libraries.
 
-Upstream generates a random, nonsecret integrity key and records build time. A
-clean rebuild need not produce identical module bytes. The test instead requires
+Upstream generates a random, nonsecret integrity key; clean rebuilds therefore
+need not produce identical module bytes. Build metadata uses the pinned SymCrypt
+commit timestamp (`SOURCE_DATE_EPOCH=1785966537`, matching `2026-08-05T21:48:57Z`)
+so the generated `buildInfo.h` header does not vary by wall clock or host time
+zone, while `symcrypt_internal_shared.inc` retains upstream's random key.
+`//symcrypt:timestamp_test` runs the actual generator across build roots, time
+zones, edited epochs and invalid input. The package test also requires
 the installed module to equal the particular sealed build output, verifies its
 matching symbols, loads it to execute upstream startup self-tests, and checks
 that changing one digest byte in a disposable copy causes upstream's fatal

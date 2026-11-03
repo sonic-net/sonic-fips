@@ -33,7 +33,7 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     flags = [f"--platforms=@sonic_build_infra//platforms:{machine}_trixie",
              f"--host_platform=@sonic_build_infra//platforms:{machine}_trixie", "--jobs=4", *args.bazel_arg]
-    tests = ["//symcrypt:package_test"]
+    tests = ["//symcrypt:package_test", "//symcrypt:timestamp_test"]
     with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
         query = "deps(set(" + " ".join(tests) + " //symcrypt:runtime_packages.json " + " ".join(ARTIFACT_TARGETS) + "))"
         subprocess.run(["bazel", "aquery", query, *flags,
@@ -92,6 +92,7 @@ def main():
     assert provider_commands and all("gcc-14.2.0-linux-target-" in item["command"] for item in provider_commands)
     assert not any(" -I/usr/" in item["command"] or " -isystem /usr/" in item["command"] for item in provider_commands)
     shutil.copytree("bazel-testlogs/symcrypt/package_test", output / "package-test", dirs_exist_ok=True)
+    shutil.copytree("bazel-testlogs/symcrypt/timestamp_test", output / "timestamp-test", dirs_exist_ok=True)
     if args.architecture == "amd64":
         compare_build_roots(output / "provider-repro", flags)
     revision = subprocess.check_output(["git", "-c", "safe.directory=" + str(Path.cwd()), "rev-parse", "HEAD"], text=True).strip()
