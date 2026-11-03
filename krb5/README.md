@@ -63,3 +63,11 @@ complete dependency set, provider configuration and service behavior. Consumers
 retaining APT-managed replacement packages need their own integration contract.
 Native AMD64 and ARM64 CI retains packages, source checksums, module resolution,
 action audits and test evidence. This is not a FIPS certification claim.
+
+## Reproducible debug paths
+
+The upstream `configure_make` rule enables `set_file_prefix_map` for the full
+execution root. This also normalizes dependency and sysroot header paths, which
+are outside the compiler's current source directory. Installed-package tests
+reject absolute execution-root paths in the detached symbols while retaining
+the existing build-ID, debuglink, source-line and runtime checks.

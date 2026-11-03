@@ -84,3 +84,11 @@ artifacts contain both TARs, source and patch records, action audit, source buil
 logs and test receipts. It builds no Debian packages. The source-built OpenSSL
 provider/engine integration and final image behavior need their own validation;
 these default-mode client tests do not certify FIPS operation.
+
+## Reproducible debug paths
+
+The upstream `configure_make` rule enables `set_file_prefix_map` for the full
+execution root. This also normalizes dependency and sysroot header paths, which
+are outside the compiler's current source directory. Installed-package tests
+reject absolute execution-root paths in the detached symbols while retaining
+the existing build-ID, debuglink, source-line and runtime checks.

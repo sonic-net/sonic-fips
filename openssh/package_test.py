@@ -60,7 +60,7 @@ def main():
             assert struct.unpack_from("<HH", header, 16) == (3, machine), name
             expected_mode = {"ssh-agent": 0o2755, "ssh-keysign": 0o4755}.get(binary.name, 0o755)
             assert entries[name].mode == expected_mode, (name, entries[name].mode)
-            check_symbols(binary, symbols, scratch)
+            check_symbols(binary, symbols, scratch, prefix_mapped=True)
         debug_files = [name for name, member in debug_entries.items() if member.isfile()]
         assert len(debug_files) == 10 and all(name.endswith(".debug") for name in debug_files)
         assert entries["etc/ssh/ssh_config.d"].isdir()

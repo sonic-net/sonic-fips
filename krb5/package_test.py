@@ -70,7 +70,7 @@ def main():
                 assert header[:6] == b"\x7fELF\x02\x01" and struct.unpack_from("<HH", header, 16) == (3, machine)
                 dynamic = run("readelf", "-d", str(binary))
                 assert not re.search(r"\((?:RPATH|RUNPATH)\)", dynamic), dynamic
-                check_symbols(binary, symbols, scratch)
+                check_symbols(binary, symbols, scratch, prefix_mapped=True)
                 if path.endswith("/spake.so"):
                     check_gdb(binary, symbols, "clpreauth_spake_initvt", "spake_client.c")
             binary = root / prefix / library

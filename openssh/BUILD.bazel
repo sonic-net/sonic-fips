@@ -37,6 +37,7 @@ _BUILD_ENV = {
 # by client programs: libedit, GSSAPI, PKCS#11 and built-in FIDO security keys.
 [configure_make(
     name = name,
+    set_file_prefix_map = True,
     args = [
         "DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
         "ASKPASS_PROGRAM=/usr/bin/ssh-askpass",
