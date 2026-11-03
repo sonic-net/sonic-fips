@@ -47,13 +47,16 @@ def build_id(path):
     return re.search(r"Build ID: ([0-9a-f]+)", run("readelf", "-n", str(path))).group(1)
 
 
-def check_symbols(binary, symbols, scratch):
+def check_symbols(binary, symbols, scratch, *, prefix_mapped=False):
     identifier = build_id(binary)
     debug = symbols / "usr/lib/debug/.build-id" / identifier[:2] / (identifier[2:] + ".debug")
     assert debug.is_file(), (binary, identifier)
     assert build_id(debug) == identifier
     assert ".debug_info" not in run("readelf", "-SW", str(binary))
     assert ".debug_info" in run("readelf", "-SW", str(debug))
+    if prefix_mapped:
+        paths = run("readelf", "-p", ".debug_line_str", "-p", ".debug_str", str(debug))
+        assert "/execroot/" not in paths, paths
     section = scratch / "debuglink"
     run("objcopy", "--dump-section", f".gnu_debuglink={section}", str(binary), str(scratch / "copy"))
     data = section.read_bytes()
