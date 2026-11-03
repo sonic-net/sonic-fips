@@ -70,6 +70,26 @@ def main():
         assert ".debug_info" in run("readelf", "-SW", str(debug))
         sections = run("readelf", "-SW", str(core))
         assert ".debug_info" not in sections and ".gnu_debuglink" not in sections
+        # Generated assembly must retain the same execution-root mapping as C.
+        # Inspect the original pre-strip symbols, never alter the sealed core.
+        with debug.open("rb") as stream:
+            dwarf = ELFFile(stream).get_dwarf_info()
+            assembly_units = 0
+            for unit in dwarf.iter_CUs():
+                attrs = unit.get_top_DIE().attributes
+                if "DW_AT_name" in attrs and attrs["DW_AT_name"].value.endswith((b".asm", b".S", b".s")):
+                    assembly_units += 1
+                    lines = dwarf.line_program_for_CU(unit)
+                    assert lines is not None, "Generated assembly has no source line table"
+                    paths = list(lines.header.include_directory)
+                    paths.extend(entry.name for entry in lines.header.file_entry)
+                    for value in paths:
+                        assert b"/sandbox/" not in value and b"/execroot/" not in value, value
+                for key in ("DW_AT_name", "DW_AT_comp_dir"):
+                    if key in attrs:
+                        value = attrs[key].value
+                        assert b"/sandbox/" not in value and b"/execroot/" not in value, (key, value)
+            assert assembly_units, "Core debug file omitted generated assembly compilation units"
         check_gdb(core, symbols, "SymCryptModuleMain", "modules/posix/common/module.c")
         expected_debug = {str(debug.relative_to(symbols))}
         for binary in [libdir / "libsymcryptengine.so", libdir / "ossl-modules/symcryptprovider.so"]:
