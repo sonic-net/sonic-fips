@@ -63,6 +63,8 @@ _BUILD_ENV = {
         # Foreign Cc stages the declared transitive shared libraries here.
         # This is an ld input search path, not a path embedded in the binaries.
         "--with-ldflags=-Wl,-rpath-link=$$EXT_BUILD_DEPS$$/lib",
+        # Prefer the declared source headers over transitive Debian SDKs.
+        "--with-ssl-dir=$$EXT_BUILD_DEPS$$/build/usr",
         "--with-ssl-engine",
         "--with-wtmpdb",
         "--with-selinux",
@@ -75,10 +77,14 @@ _BUILD_ENV = {
     env = select({
         "@platforms//cpu:x86_64": dict(
             _BUILD_ENV,
+            # OpenSSH's prefix probe uses lib/, while SONiC installs multiarch.
+            LDFLAGS = "-L$$EXT_BUILD_DEPS$$/build/usr/lib/x86_64-linux-gnu",
             LD_LIBRARY_PATH = "$$EXT_BUILD_DEPS$$/build/usr/lib/x86_64-linux-gnu:$$EXT_BUILD_DEPS$$/lib",
         ),
         "@platforms//cpu:aarch64": dict(
             _BUILD_ENV,
+            # OpenSSH's prefix probe uses lib/, while SONiC installs multiarch.
+            LDFLAGS = "-L$$EXT_BUILD_DEPS$$/build/usr/lib/aarch64-linux-gnu",
             LD_LIBRARY_PATH = "$$EXT_BUILD_DEPS$$/build/usr/lib/aarch64-linux-gnu:$$EXT_BUILD_DEPS$$/lib",
         ),
     }),
@@ -258,6 +264,26 @@ py_test(
     main = "//:tools/bazel/configure_flags_test.py",
     # Native Trixie CI supplies GCC14/Autoconf/Make for the adapter regression.
     tags = ["local"],
+)
+
+py_test(
+    name = "source_openssl_test",
+    srcs = ["source_openssl_test.py"],
+    args = [
+        "$(rootpath @openssh_src//:source.json)",
+        "$(rootpath //openssl:libssl3t64_pkg)",
+        "$(rootpath //openssl:libssl_dev_pkg)",
+        "$(rootpath //openssl:openssl_pkg)",
+    ],
+    data = [
+        "//openssl:libssl3t64_pkg",
+        "//openssl:libssl_dev_pkg",
+        "//openssl:openssl_pkg",
+        "@openssh_src//:source.json",
+        "@openssh_src//:sources",
+    ],
+    tags = ["local"],
+    deps = ["//openssl:package_test_utils"],
 )
 
 py_test(

@@ -108,3 +108,22 @@ execution root. This also normalizes dependency and sysroot header paths, which
 are outside the compiler's current source directory. Installed-package tests
 reject absolute execution-root paths in the detached symbols while retaining
 the existing build-ID, debuglink, source-line and runtime checks.
+
+## Select the source OpenSSL SDK
+
+OpenSSH uses upstream `--with-ssl-dir` to select the declared source OpenSSL
+installation. Its native multiarch library directory is also placed before
+APT dependency directories in the linker flags. Transitive Debian development
+packages can expose a different OpenSSL header version; those headers must
+not replace the source SDK while the installed client uses source libcrypto.
+The existing strict header/library compatibility check stays enabled.
+
+`//openssh:source_openssl_test` runs the original patched OpenSSH configure
+script against source-built OpenSSL runtime, SDK and executable TARs. The
+positive case puts a stale header directory earlier in the incoming flags and
+requires the selected source prefix to win, including actual linker tracing.
+The negative case changes only a private header version and requires the
+original mismatch check to reject it with the real source library unchanged.
+This bounded configure test disables optional client features; the separate
+full production build, original unit/compatibility suite and private-client
+smoke retain all existing normal-package features.

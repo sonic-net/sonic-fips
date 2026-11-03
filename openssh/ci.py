@@ -50,7 +50,7 @@ def main():
              "--jobs=4", *args.bazel_arg]
     try:
         with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-            subprocess.run(["bazel", "aquery", "deps(set(//openssh:package_test //openssh:configure_flags_test //openssh:upstream_tests_debug //openssh:runtime_packages.json))",
+            subprocess.run(["bazel", "aquery", "deps(set(//openssh:package_test //openssh:configure_flags_test //openssh:source_openssl_test //openssh:upstream_tests_debug //openssh:runtime_packages.json))",
                             *flags, "--include_file_write_contents", "--output=jsonproto"],
                            stdout=stdout, stderr=stderr, check=True)
         write_json(output / "audit.json", audit(json.loads((output / "actions.json").read_text())))
@@ -60,6 +60,13 @@ def main():
         for name in ("test.log", "test.xml"):
             source = Path("bazel-testlogs/openssh/configure_flags_test") / name
             destination = output / "configure-flags-test" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+        command(["bazel", "test", "//openssh:source_openssl_test", *flags,
+                 "--test_output=errors", "--nocache_test_results"], output / "source-openssl-test.log")
+        for name in ("test.log", "test.xml"):
+            source = Path("bazel-testlogs/openssh/source_openssl_test") / name
+            destination = output / "source-openssl-test" / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, destination)
         # The original unit/compatibility targets and the private-agent smoke
@@ -100,6 +107,7 @@ def main():
             "runtime_package_metadata": metadata,
             "packages": packages, "upstream_unit_and_compatibility_tests": "passed",
             "compiler_flag_regression": "passed",
+            "source_openssl_selection": "passed",
             "private_client_agent_smoke": "passed", "installed_package_test": "passed",
             "debug_pairs": 10,
             "scope": "OpenSSH clients; no server, network SSH, provider certification or final image validation",
