@@ -104,14 +104,17 @@ def main():
         "--jobs=4",
         *args.bazel_arg,
     ]
+    tests = ["//openssl:package_test"]
+    if args.architecture == "amd64":
+        tests.append("//openssl:build_info_test")
     with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-        subprocess.run(["bazel", "aquery", "deps(set(//openssl:package_test //openssl:runtime_packages.json))", *flags,
+        subprocess.run(["bazel", "aquery", "deps(set(" + " ".join(tests + ["//openssl:runtime_packages.json"]) + "))", *flags,
                         "--include_file_write_contents", "--output=jsonproto"],
                        stdout=stdout, stderr=stderr, check=True)
     report = audit(json.loads((output / "actions.json").read_text()))
     (output / "audit.json").write_text(json.dumps(report, indent=2) + "\n")
     retain_resolution(output, args.architecture, args.bazel_arg)
-    command(["bazel", "test", "//openssl:package_test", *flags, "--test_output=errors",
+    command(["bazel", "test", *tests, *flags, "--test_output=errors",
              "--nocache_test_results", "--build_event_json_file=" + str(output / "events.json")],
             output / "test.log")
     metadata = retain_runtime_metadata(output, "openssl", flags)

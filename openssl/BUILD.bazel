@@ -8,6 +8,22 @@ load(":build.bzl", "openssl_build")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["build-info-prefix.patch"])
+
+py_test(
+    name = "build_info_test",
+    srcs = ["build_info_test.py"],
+    args = [
+        "$(rootpath @sonic_build_infra//tools/build_tools:perl)",
+        "$(rootpath @openssl_src//:util/mkbuildinf.pl)",
+    ],
+    data = [
+        "@sonic_build_infra//tools/build_tools:perl",
+        "@openssl_src//:util/mkbuildinf.pl",
+    ],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
 openssl_build(name = "build")
 
 [
