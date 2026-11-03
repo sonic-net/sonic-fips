@@ -1,0 +1,16 @@
+Preserve declared assembler flags before adding the upstream language mode.
+Source: Microsoft/SymCrypt 286762b7730e2b780678f5ab11fef2b1bad639e0.
+This carries source/debug prefix maps into generated assembly compilation;
+cryptographic source, upstream code-generation settings and sealing stay unchanged.
+Previously discarded declared toolchain flags are restored.
+--- a/upstream/cmake-configs/SymCrypt-Platforms.cmake
++++ b/upstream/cmake-configs/SymCrypt-Platforms.cmake
+@@ -61,7 +61,7 @@
+ if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+     if(SYMCRYPT_USE_ASM)
+         enable_language(ASM)
+-        set(CMAKE_ASM_FLAGS "-x assembler-with-cpp")
++        string(APPEND CMAKE_ASM_FLAGS " -x assembler-with-cpp")
+         # Suppress noisy warnings about compile options which are ignored for ASM
+         # Less messy than restricting most of the below options to only C/CXX!
+         add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-Wno-unused-command-line-argument>)

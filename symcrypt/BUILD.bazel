@@ -13,6 +13,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "core.CMakeLists.txt",
     "declared-tools.patch",
+    "0002-preserve-assembly-flags.patch",
 ])
 
 py_binary(
