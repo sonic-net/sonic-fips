@@ -173,6 +173,8 @@ def main():
         environment = dict(os.environ, LD_LIBRARY_PATH=str(library_dir), OPENSSL_CONF=str(root / "etc/ssl/openssl.cnf"))
         version = run(str(command), "version", "-a", env=environment)
         assert "OpenSSL 3.5.7" in version, version
+        compiler = next(line for line in version.splitlines() if line.startswith("compiler: "))
+        assert compiler.startswith("compiler: ./external/") and "/execroot/" not in compiler, compiler
         assert 'OPENSSLDIR: "/usr/lib/ssl"' in version, version
         assert 'ENGINESDIR: "/usr/lib/' + multiarch + '/engines-3"' in version, version
         digest = run(str(command), "dgst", "-sha256", input="abc", env=environment)

@@ -1,0 +1,20 @@
+--- a/util/mkbuildinf.pl
++++ b/util/mkbuildinf.pl
+@@ -11,6 +11,17 @@
+ 
+ my $platform = pop @ARGV;
+ my $cflags = join(' ', @ARGV);
++# Bazel's foreign build uses absolute compiler/sysroot paths. Keep their
++# repository-relative identity and every option in the version metadata,
++# without recording the action-private execution root. This only changes
++# build-info generation; the compiler still receives its original arguments.
++# Normal Make builds, which do not define EXT_BUILD_ROOT, retain upstream
++# behavior. Compiler prefix-map flags separately normalize DWARF/__FILE__.
++if (defined $ENV{'EXT_BUILD_ROOT'} && $ENV{'EXT_BUILD_ROOT'} =~ m{^/}) {
++    my $root = $ENV{'EXT_BUILD_ROOT'};
++    $root =~ s{/+$}{};
++    $cflags =~ s{\Q$root\E(?=/|=|\s|$)}{.}g if length $root;
++}
+ $cflags =~ s(\\)(\\\\)g;
+ $cflags = "compiler: $cflags";
+ 

@@ -14,6 +14,9 @@ source patch archive with the SHA-256 values in Debian's published
 1. The two active SONiC runtime patches in `src/openssl.patch/series`.
 2. All 23 patches in Debian's source series, including its security fixes.
 3. The four SONiC test patches added to the Debian series by Make.
+4. A Bazel-only build-info patch that replaces the execution-root prefix in
+   OpenSSL's compiler metadata with `.`. It preserves every compiler option
+   and repository-relative path; ordinary Make builds retain upstream behavior.
 
 The two runtime patches have refreshed surrounding lines for OpenSSL 3.5.7.
 Their resulting source is byte-for-byte identical to applying the original
@@ -27,6 +30,12 @@ files privately in the Bazel action. Generated Perl scripts retain
 `#!/usr/bin/perl` for the installed system. The build uses Make's fixed source
 timestamp. Compiler prefix maps remove the private build-directory prefix from
 debug information.
+
+OpenSSL also embeds the compiler command as a character array returned by
+`OpenSSL_version(OPENSSL_CFLAGS)`. Compiler prefix maps do not alter that literal
+metadata. The build-info patch normalizes it before compilation, so identical
+inputs built in different sandbox directories can produce the same ELF/build ID
+and matching symbols. It does not rewrite linked binaries or cryptographic code.
 
 The source supports native AMD64 and ARM64 on Debian Trixie. ARM64 omits the
 x86 PadLock engine, as Debian's build does.
@@ -75,6 +84,13 @@ paths, matching build IDs and debug-link checksums, and GDB source lookup.
 It also compiles and runs small shared and static consumers using the installed
 development archive. GCC, pkg-config and zlib/zstd development files are explicit
 native test prerequisites; producer compilation still uses the Bazel toolchain.
+
+The AMD64 `//openssl:build_info_test` runs the real Perl generator with two
+execution roots, checks identical output and preserved compiler options, and
+checks that changed flags still change the metadata. Independent runtime/debug
+build comparisons additionally check the delivered files themselves.
+The installed CLI check also rejects an absolute execution root in its actual
+`openssl version -a` compiler report.
 
 Each native CI job starts without a Bazel lockfile, generates it in update mode,
 and uploads it with the resolved module graph and hashes of the declared inputs.
