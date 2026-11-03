@@ -71,3 +71,19 @@ execution root. This also normalizes dependency and sysroot header paths, which
 are outside the compiler's current source directory. Installed-package tests
 reject absolute execution-root paths in the detached symbols while retaining
 the existing build-ID, debuglink, source-line and runtime checks.
+
+## Large compiler dependency lists
+
+The configure adapter preserves ordered preprocessing flags through GCC14's
+`-Wp,@file` response interface. This avoids the per-string limit in GCC's
+`COLLECT_GCC_OPTIONS` when the driver starts `cc1`. Driver and linker options
+stay intact, including the existing `CC` link options used by upstream test
+programs that invoke the compiler without `LDFLAGS`.
+
+`//krb5:configure_flags_test` runs real Autoconf compile/preprocessor probes
+and recursive Make with native GCC14. It reproduces the original argument-limit
+failure and checks quoted defines, header/link ordering, prefix maps, identical
+short/long-flag executable bytes and rejection of driver-only `CPPFLAGS`.
+CI explicitly installs these test tools. This small configure fixture does not
+test cryptography; the original crypto suite, real source-OpenSSL loader check
+and installed runtime/debug package tests remain required separately.

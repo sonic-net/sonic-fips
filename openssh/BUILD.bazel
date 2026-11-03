@@ -37,7 +37,6 @@ _BUILD_ENV = {
 # by client programs: libedit, GSSAPI, PKCS#11 and built-in FIDO security keys.
 [configure_make(
     name = name,
-    set_file_prefix_map = True,
     args = [
         "DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
         "ASKPASS_PROGRAM=/usr/bin/ssh-askpass",
@@ -105,6 +104,7 @@ _BUILD_ENV = {
     ],
     out_data_files = ["client-smoke.json"] if name == "upstream_tests" else [],
     postfix_script = 'cd "$${BUILD_TMPDIR}"\n/bin/sh "$${EXT_BUILD_ROOT}/$(execpath :client_test.sh)" "$${INSTALLDIR}/client-smoke.json"' if name == "upstream_tests" else "",
+    set_file_prefix_map = True,
     tags = [
         "manual",
         "no-cache",
@@ -229,7 +229,10 @@ sonic_deploy_tar(
         "{} uid=0 gid={} mode={} type=file".format(
             path,
             104 if name == "ssh-agent" else 0,
-            {"ssh-agent": "2755", "ssh-keysign": "4755"}.get(name, "0755"),
+            {
+                "ssh-agent": "2755",
+                "ssh-keysign": "4755",
+            }.get(name, "0755"),
         ): ":" + name
         for path, name in _BINARIES.items()
     },
@@ -242,6 +245,19 @@ sonic_deploy_tar(
         "etc/systemd/user/sockets.target.wants/ssh-agent.socket uid=0 gid=0 mode=0777 type=link link=/lib/systemd/user/ssh-agent.socket",
         "usr/lib/systemd/user/graphical-session-pre.target.wants/ssh-agent.service uid=0 gid=0 mode=0777 type=link link=../ssh-agent.service",
     ],
+)
+
+py_test(
+    name = "configure_flags_test",
+    srcs = ["//:tools/bazel/configure_flags_test.py"],
+    args = [
+        "$(rootpath :configure.sh)",
+        "openssh",
+    ],
+    data = [":configure.sh"],
+    main = "//:tools/bazel/configure_flags_test.py",
+    # Native Trixie CI supplies GCC14/Autoconf/Make for the adapter regression.
+    tags = ["local"],
 )
 
 py_test(

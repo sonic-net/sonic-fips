@@ -13,7 +13,6 @@ exports_files([
 
 [configure_make(
     name = name,
-    set_file_prefix_map = True,
     args = [
         "-j4",
         "DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
@@ -76,6 +75,7 @@ exports_files([
         "libkrb5.so.3.3",
         "libgssapi_krb5.so.2.2",
     ],
+    set_file_prefix_map = True,
     tags = [
         "manual",
         "no-cache",
@@ -184,6 +184,19 @@ filegroup(
     "",
     ".debug_symbols",
 ]]
+
+py_test(
+    name = "configure_flags_test",
+    srcs = ["//:tools/bazel/configure_flags_test.py"],
+    args = [
+        "$(rootpath :configure.sh)",
+        "krb5",
+    ],
+    data = [":configure.sh"],
+    main = "//:tools/bazel/configure_flags_test.py",
+    # Native Trixie CI supplies GCC14/Autoconf/Make for the adapter regression.
+    tags = ["local"],
+)
 
 py_test(
     name = "package_test",
