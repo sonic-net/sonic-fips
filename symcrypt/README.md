@@ -54,6 +54,13 @@ ASM, release optimization, FIPS self-tests, integrity postprocessing, binary
 stripping and the upstream unit tests remain enabled. ARM64 retains
 `-mno-outline-atomics`. No SymCRust dependency is introduced.
 
+The assembly-flags patch appends upstream's assembler language mode to the
+existing declared flags, preserving the execution-root prefix map. Generated
+assembly therefore uses the same source/debug path mapping as C before the
+original strip-and-seal sequence. CI checks actual assembly command lines and
+the original core debug file for worker paths. The random integrity key and
+build timestamp remain separate sources of non-identical core bytes.
+
 The small declared-tools patch selects CMake's explicit Make, archive, strip and
 objcopy programs, and passes the declared link flags to jitterentropy. The
 upstream crypto sources, export script and integrity algorithm are unchanged.

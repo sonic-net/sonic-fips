@@ -78,6 +78,9 @@ def main():
     commands = json.loads((evidence / "compile_commands.json").read_text())
     assert commands and all("symcrypt_llvm/bin/cc_wrapper.sh" in item["command"] for item in commands)
     assert all("--sysroot=" in item["command"] for item in commands)
+    assembly_commands = [item for item in commands if item["file"].endswith((".asm", ".S", ".s"))]
+    assert assembly_commands, "SymCrypt assembly compilation was omitted"
+    assert all("-ffile-prefix-map=" in item["command"] for item in assembly_commands), assembly_commands
     language_commands = [item for item in commands if item["file"].endswith((".c", ".cpp"))]
     assert language_commands and all("-resource-dir" in item["command"] for item in language_commands)
     # Clang's C headers come from its declared resource directory and sysroot;
