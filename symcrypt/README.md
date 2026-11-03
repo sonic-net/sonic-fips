@@ -80,9 +80,24 @@ matching symbols, loads it to execute upstream startup self-tests, and checks
 that changing one digest byte in a disposable copy causes upstream's fatal
 integrity rejection. This Bazel rebuild makes no certification claim.
 
+CMake does not insert a temporary build RPATH into the engine or provider.
+Its normal install-time removal otherwise leaves path-length-dependent padding
+in the ELF dynamic string table: the FRR image's local and hosted builds had
+identical code and DWARF, but 44 different trailing NUL bytes and consequently
+different build IDs. `CMAKE_SKIP_RPATH=ON` prevents that padding at link time;
+installed consumers already use their declared library paths. The core's
+random integrity key and HMAC remain unchanged, so whole runtime/debug TAR
+reproducibility is not claimed.
+
 ## Validation and maintenance
 
 Run `bazel test //symcrypt:package_test` after auditing that target's action graph.
+AMD64 CI also runs `tools/bazel/provider_repro.py`: two genuine upstream
+CMake actions share the public build contract, but use fresh output bases
+with different-length paths. Only this private producer disables action-cache
+reuse; core/OpenSSL dependencies keep their normal cache behavior. Complete
+unstripped engine/provider ELFs, including DWARF, must be byte-identical.
+
 Native AMD64 and ARM64 CI retains runtime/debug TARs, their hashes, the module
 graph and lock, compiler commands, CMake settings and build logs. The test also
 runs the original full SymCrypt unit-test executable, an explicit provider SHA256
