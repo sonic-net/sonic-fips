@@ -50,11 +50,18 @@ def main():
              "--jobs=4", *args.bazel_arg]
     try:
         with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-            subprocess.run(["bazel", "aquery", "deps(set(//openssh:package_test //openssh:upstream_tests_debug //openssh:runtime_packages.json))",
+            subprocess.run(["bazel", "aquery", "deps(set(//openssh:package_test //openssh:configure_flags_test //openssh:upstream_tests_debug //openssh:runtime_packages.json))",
                             *flags, "--include_file_write_contents", "--output=jsonproto"],
                            stdout=stdout, stderr=stderr, check=True)
         write_json(output / "audit.json", audit(json.loads((output / "actions.json").read_text())))
         retain_resolution(output, args.architecture, args.bazel_arg)
+        command(["bazel", "test", "//openssh:configure_flags_test", *flags,
+                 "--test_output=errors", "--nocache_test_results"], output / "configure-flags-test.log")
+        for name in ("test.log", "test.xml"):
+            source = Path("bazel-testlogs/openssh/configure_flags_test") / name
+            destination = output / "configure-flags-test" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
         # The original unit/compatibility targets and the private-agent smoke
         # execute in a separate no-cache action. CI starts with a fresh output
         # base, even when dependency builds are restored from the disk cache.
@@ -92,6 +99,7 @@ def main():
             "working_tree_dirty": dirty, "machine": platform.machine(), "architecture": args.architecture,
             "runtime_package_metadata": metadata,
             "packages": packages, "upstream_unit_and_compatibility_tests": "passed",
+            "compiler_flag_regression": "passed",
             "private_client_agent_smoke": "passed", "installed_package_test": "passed",
             "debug_pairs": 10,
             "scope": "OpenSSH clients; no server, network SSH, provider certification or final image validation",

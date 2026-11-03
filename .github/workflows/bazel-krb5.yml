@@ -30,7 +30,7 @@ jobs:
       - name: Install validation and archive tools
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends binutils ca-certificates curl gdb git patch python3 tar unzip xz-utils zstd
+          apt-get install -y --no-install-recommends autoconf binutils build-essential ca-certificates curl gdb git patch python3 tar unzip xz-utils zstd
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

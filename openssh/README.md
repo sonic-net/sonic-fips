@@ -5,6 +5,15 @@ compilation and preprocessor probes. Native CI starts without a generated Bazel
 lock and retains the regenerated lock, resolved graph and input hashes before
 the upstream and package tests.
 
+Large dependency include lists are delivered through GCC14's preprocessor
+response-file interface (`-Wp,@file`). This avoids GCC's per-string limit when
+its driver creates `COLLECT_GCC_OPTIONS` to start `cc1`; an ordinary driver
+`@file` would expand the same oversized environment string. The complete
+preprocessing flags retain their order and quoting. Driver and link options
+remain in `CFLAGS` and `LDFLAGS`, and invalid driver-only `CPPFLAGS` fail early.
+Autoconf retains the response-file path for recursive Make and its preprocessor
+probes. Feature options, dependency selections and installed outputs are unchanged.
+
 The SONiC recipe selects `10.0p1-7+fips` and submodule revision
 `53e29c05c14ec5f29dbd3df5466b55cf4ca488b1`. The official Debian
 [`10.0p1-7` source description](https://deb.debian.org/debian/pool/main/o/openssh/openssh_10.0p1-7.dsc)
@@ -61,6 +70,13 @@ dpkg records. A consumer retaining APT-managed replacement packages needs a
 separate integration contract and validation.
 
 ## Build and test
+
+`//openssh:configure_flags_test` exercises the actual adapter with native
+GCC14, Autoconf, Autoheader and Make, installed explicitly by the CI workflow.
+It reproduces the compiler-to-`cc1` argument-limit failure, then checks real
+configure/preprocessor probes, recursive Make, quoted defines, header/link
+ordering, prefix maps and identical short/long-flag executable bytes. The full
+source builds below use Bazel's declared compiler and dependency toolchains.
 
 Use the native Debian Trixie platform and declared compiler selected by
 `.bazelrc`. Build `//openssh:openssh_client_pkg` and

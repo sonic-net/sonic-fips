@@ -3,6 +3,7 @@ load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages_group")
 exports_files([
     "LICENSE",
     "runtime_packages.md",
+    "tools/bazel/configure_flags_test.py",
     "src/SymCrypt-OpenSSL-Debian/debian/control",
 ])
 
