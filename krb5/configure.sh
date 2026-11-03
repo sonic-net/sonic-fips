@@ -1,6 +1,16 @@
 #!/bin/sh
 # Regenerate Debian's configure changes with the selected build tools.
 set -eu
+# Large dependency include lists can overflow GCC's COLLECT_GCC_OPTIONS when
+# it starts cc1. Ordinary @ expansion at the driver recreates that environment
+# string; pass preprocessing options directly to cc1 with its response file.
+cppflags_file="$PWD/.bazel-cppflags.rsp"
+printf '%s\n' "${CPPFLAGS:-}" > "$cppflags_file"
+if ! $CC ${CFLAGS:-} "-Wp,@$cppflags_file" -x c -fsyntax-only /dev/null; then
+    echo "Kerberos CPPFLAGS must contain GCC preprocessor options; use CFLAGS/LDFLAGS for driver options" >&2
+    exit 1
+fi
+export CPPFLAGS="-Wp,@$cppflags_file"
 "$AUTOCONF" --include=config
 "$AUTOHEADER" --include=config
 export PATH="$KERBEROS_BUILD_TOOLS/bin:$PATH"
