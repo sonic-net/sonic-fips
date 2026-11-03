@@ -11,6 +11,7 @@ import shutil
 import subprocess
 
 from ci import audit, command, retain_resolution, retain_runtime_metadata
+from provider_repro import compare_build_roots
 
 
 PACKAGES = ["runtime", "runtime.debug_symbols"]
@@ -32,8 +33,9 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     flags = [f"--platforms=@sonic_build_infra//platforms:{machine}_trixie",
              f"--host_platform=@sonic_build_infra//platforms:{machine}_trixie", "--jobs=4", *args.bazel_arg]
+    tests = ["//symcrypt:package_test"]
     with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-        query = "deps(set(//symcrypt:package_test //symcrypt:runtime_packages.json " + " ".join(ARTIFACT_TARGETS) + "))"
+        query = "deps(set(" + " ".join(tests) + " //symcrypt:runtime_packages.json " + " ".join(ARTIFACT_TARGETS) + "))"
         subprocess.run(["bazel", "aquery", query, *flags,
                         "--include_file_write_contents", "--output=jsonproto"], stdout=stdout, stderr=stderr, check=True)
     (output / "audit.json").write_text(json.dumps(audit(json.loads((output / "actions.json").read_text())), indent=2) + "\n")
@@ -49,7 +51,7 @@ def main():
     shutil.copyfile(consumer / "MODULE.bazel", output / "consumer.MODULE.bazel")
     shutil.copyfile(consumer / "MODULE.bazel.lock", output / "consumer.MODULE.bazel.lock")
     retain_resolution(output, args.architecture, args.bazel_arg)
-    command(["bazel", "test", "//symcrypt:package_test", *flags, "--test_output=errors", "--nocache_test_results",
+    command(["bazel", "test", *tests, *flags, "--test_output=errors", "--nocache_test_results",
              "--build_event_json_file=" + str(output / "events.json")], output / "test.log")
     # cquery reports configured paths without building them. Evidence outputs
     # are not all dependencies of package_test, so materialize them explicitly.
@@ -87,13 +89,18 @@ def main():
     assert provider_commands and all("gcc-14.2.0-linux-target-" in item["command"] for item in provider_commands)
     assert not any(" -I/usr/" in item["command"] or " -isystem /usr/" in item["command"] for item in provider_commands)
     shutil.copytree("bazel-testlogs/symcrypt/package_test", output / "package-test", dirs_exist_ok=True)
+    if args.architecture == "amd64":
+        compare_build_roots(output / "provider-repro", flags)
     revision = subprocess.check_output(["git", "-c", "safe.directory=" + str(Path.cwd()), "rev-parse", "HEAD"], text=True).strip()
     (output / "result.json").write_text(json.dumps({
         "_generated": {"notice": "AUTO-GENERATED. DO NOT EDIT MANUALLY.", "generator": "tools/bazel/symcrypt_ci.py"},
         "tested_commit": revision, "pull_request_head": os.environ.get("CI_HEAD_SHA"),
         "architecture": args.architecture, "packages": packages,
         "runtime_package_metadata": metadata,
-        "installed_package_test": "passed", "certification_claim": False,
+        "installed_package_test": "passed",
+        "provider_different_build_paths": "passed" if args.architecture == "amd64" else "not run",
+        "core_reproducibility": "Upstream intentionally generates a fresh integrity key and HMAC; whole runtime/debug TAR byte equality is not claimed.",
+        "certification_claim": False,
         "scope": "native core unit tests, sealed-byte preservation, integrity rejection, matching symbols, source OpenSSL provider and engine",
     }, indent=2) + "\n")
 
