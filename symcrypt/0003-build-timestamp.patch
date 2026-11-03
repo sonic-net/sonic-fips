@@ -1,0 +1,21 @@
+Honor declared SOURCE_DATE_EPOCH for generated build metadata only.
+Source: Microsoft/SymCrypt 286762b7730e2b780678f5ab11fef2b1bad639e0.
+Absent the variable, preserve upstream wall-clock behavior. Runtime entropy,
+integrity-key generation and FIPS postprocessing are unchanged.
+--- a/upstream/scripts/version.py
++++ b/upstream/scripts/version.py
+@@ -125,7 +125,13 @@
+ 
+     (version_branch, version_commit_hash, version_commit_timestamp) = get_commit_info()
+ 
+-    version_build_timestamp = datetime.datetime.now()
++    # Reproducible build metadata may use the source archive timestamp. This
++    # does not affect runtime entropy or the independent FIPS integrity key.
++    source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
++    version_build_timestamp = (
++        datetime.datetime.fromtimestamp(int(source_date_epoch), datetime.timezone.utc)
++        if source_date_epoch is not None else datetime.datetime.now()
++    )
+     get_version_info.symcrypt_version = SymCryptVersion(
+         version_major,
+         version_minor,
