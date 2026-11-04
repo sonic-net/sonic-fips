@@ -60,6 +60,9 @@ def main():
         assert {name for name, item in entries.items() if item.issym()} == installed_links
         core = libdir / "libsymcrypt.so.103.13.0"
         assert core.read_bytes() == Path(raw_core).read_bytes(), "sealed core changed during packaging"
+        expected_build = (b"v103.13.0_HEAD_2026-08-05T21:48:57+00:00_"
+                          b"286762b7730e2b780678f5ab11fef2b1bad639e0_2026-08-05T21:48:57+00:00")
+        assert expected_build in core.read_bytes(), "installed SymCrypt lost the declared build timestamp"
         assert (libdir / "libsymcrypt.so").resolve() == core
         assert (libdir / "engines-3/symcryptengine.so").resolve() == libdir / "libsymcryptengine.so"
         identifier = build_id(core)
