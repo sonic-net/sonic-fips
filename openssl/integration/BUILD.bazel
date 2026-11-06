@@ -34,6 +34,12 @@ genrule(
     tools = ["@bsd_tar_toolchains//:resolved_toolchain"],
 )
 
+# A cross consumer can supply the guest interpreter that runs its target ELFs.
+label_flag(
+    name = "recipe_perl",
+    build_setting_default = ":native-recipe-perl.sh",
+)
+
 # This downstream test build can depend on both OpenSSL and its plugins;
 # the production core build cannot depend on a plugin that links that core.
 openssl_build(
@@ -42,6 +48,7 @@ openssl_build(
     data = [
         ":plugin_inputs",
         ":plugins/libsymcrypt.so.103",
+        ":recipe_perl",
     ],
     out_data_files = ["evidence/suite.log"],
     postfix_script = """set -euo pipefail
@@ -51,6 +58,7 @@ plugin_dir="$${plugin_core%/*}"
 # The declared Perl launcher deliberately clears ambient PERL5LIB. TAP's
 # interpreter hook supplies OpenSSL's declared source modules as explicit -I.
 export SONIC_TEST_PERL="$$EXT_BUILD_ROOT/$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl"
+export SONIC_TEST_RECIPE_PERL="$$EXT_BUILD_ROOT/$(execpath :recipe_perl)"
 export SONIC_TEST_PERL_LIB="$$BUILD_TMPDIR/util/perl"
 export HARNESS_PERL="$$BUILD_TMPDIR/sonic-test-perl"
 export HARNESS_JOBS=4
@@ -58,7 +66,7 @@ cat > "$$HARNESS_PERL" <<'SONIC_PERL'
 #!/bin/sh
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Generator: openssl/integration/BUILD.bazel
-exec "$$SONIC_TEST_PERL" -I"$$SONIC_TEST_PERL_LIB" "$$@"
+exec "$$SONIC_TEST_RECIPE_PERL" -I"$$SONIC_TEST_PERL_LIB" "$$@"
 SONIC_PERL
 chmod +x "$$HARNESS_PERL"
 # OpenSSL's own test wrapper exposes the build directory to its loader.
