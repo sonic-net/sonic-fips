@@ -42,7 +42,7 @@ jobs:
           disk-cache: openssl-${{ matrix.architecture }}
           cache-version: "8.5.1"
       - name: Select and record registry inputs
-        run: python3 -B tools/bazel/registry_inputs.py artifacts/openssl
+        run: python3 -B tools/bazel/registry_inputs.py --registry-mirrors artifacts/openssl
       - name: Build and check installed runtime and debug TARs
         env:
           # Bazel includes client environment in retained build events.
