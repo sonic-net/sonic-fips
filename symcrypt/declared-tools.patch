@@ -7,14 +7,19 @@ Pass the declared shared-link flags to jitterentropy as well as its compile flag
 diff --git a/upstream/modules/posix/common/ModuleCommon.cmake b/upstream/modules/posix/common/ModuleCommon.cmake
 --- a/upstream/modules/posix/common/ModuleCommon.cmake
 +++ b/upstream/modules/posix/common/ModuleCommon.cmake
-@@ -24,6 +24,6 @@
-     set(OBJCOPY_COMMAND ${TARGET_TRIPLE}-objcopy)
- else()
+@@ -20,10 +20,5 @@
+ 
+-# Determine the which executable to use for stripping binaries
+-if(SYMCRYPT_TARGET_ARCH MATCHES ARM AND NOT CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+-    set(STRIP_COMMAND ${TARGET_TRIPLE}-strip)
+-    set(OBJCOPY_COMMAND ${TARGET_TRIPLE}-objcopy)
+-else()
 -    set(STRIP_COMMAND strip)
 -    set(OBJCOPY_COMMAND objcopy)
-+    set(STRIP_COMMAND ${CMAKE_STRIP})
-+    set(OBJCOPY_COMMAND ${CMAKE_OBJCOPY})
- endif()
+-endif()
++# Use the declared tools for the target ELF on both native and cross builds.
++set(STRIP_COMMAND "${CMAKE_STRIP}")
++set(OBJCOPY_COMMAND "${CMAKE_OBJCOPY}")
  
 diff --git a/upstream/modules/posix/common/CMakeLists.txt b/upstream/modules/posix/common/CMakeLists.txt
 --- a/upstream/modules/posix/common/CMakeLists.txt

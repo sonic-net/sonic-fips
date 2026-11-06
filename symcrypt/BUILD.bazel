@@ -5,8 +5,8 @@ load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
 load("@sonic_build_infra//oci:debug_symbols_layer.bzl", "debug_symbols_layer")
 load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
-load("@sonic_build_infra//toolchains/gcc:defs.bzl", "bin")
-load(":provider_build.bzl", "symcrypt_provider")
+load(":gnu_tools.bzl", "declare_gnu_tools", "gnu_build_data", "gnu_cmake_tools")
+load(":provider_build.bzl", "PROVIDER_PLATFORMS", "symcrypt_provider")
 load(":sealed_runtime.bzl", "sealed_runtime")
 
 package(default_visibility = ["//visibility:public"])
@@ -27,8 +27,8 @@ py_binary(
 filegroup(
     name = "provider_platform",
     srcs = select({
-        "@platforms//cpu:x86_64": ["@symcrypt_openssl_src//:cmake-toolchain/LinuxUserMode-AMD64.cmake"],
-        "@platforms//cpu:aarch64": ["@symcrypt_openssl_src//:cmake-toolchain/LinuxUserMode-ARM64.cmake"],
+        "@platforms//cpu:" + cpu: [platform]
+        for cpu, platform in PROVIDER_PLATFORMS.items()
     }),
 )
 
@@ -57,40 +57,10 @@ symcrypt_provider(
     ]
 ]
 
-[
-    filegroup(
-        name = tool,
-        srcs = select({
-            "@platforms//cpu:x86_64": [bin("x86_64", "14.2.0", tool)],
-            "@platforms//cpu:aarch64": [bin("aarch64", "14.2.0", tool)],
-        }),
-    )
-    for tool in [
-        "strip",
-        "objcopy",
-        "ld",
-    ]
-]
-
-# The standalone GNU launchers need their pinned Debian loader and libraries
-# even when this CMake action uses the separate Clang compiler toolchain.
-filegroup(
-    name = "gnu_tool_runtime",
-    srcs = select({
-        "@platforms//cpu:x86_64": ["@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files"],
-        "@platforms//cpu:aarch64": ["@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files"],
-    }),
-)
+declare_gnu_tools()
 
 _CORE_CACHE = {
     "CMAKE_BUILD_TYPE": "Release",
-    "CMAKE_STRIP": "$(execpath :strip)",
-    "CMAKE_OBJCOPY": "$(execpath :objcopy)",
-    # Native Clang uses GNU ld. Preserve its export-script semantics while
-    # retaining Clang code generation and the declared SONiC sysroot.
-    "CMAKE_EXE_LINKER_FLAGS": "--ld-path=$(execpath :ld)",
-    "CMAKE_SHARED_LINKER_FLAGS": "--ld-path=$(execpath :ld)",
-    "CMAKE_MODULE_LINKER_FLAGS": "--ld-path=$(execpath :ld)",
     "Python3_EXECUTABLE": "$(execpath :python)",
     "SYMCRYPT_FIPS_BUILD": "ON",
     "SYMCRYPT_FIPS_POSTPROCESS": "ON",
@@ -103,16 +73,13 @@ _CORE_CACHE = {
 cmake_variant(
     name = "core",
     build_args = ["-j4"],
-    build_data = [
-        ":python",
-        ":strip",
-        ":objcopy",
-        ":ld",
-        ":gnu_tool_runtime",
-    ],
+    build_data = [":python"] + select({
+        "@platforms//cpu:" + cpu: gnu_build_data(cpu)
+        for cpu in ["x86_64", "aarch64"]
+    }),
     cache_entries = select({
-        "@platforms//cpu:x86_64": _CORE_CACHE | {"SYMCRYPT_TARGET_ARCH": "AMD64"},
-        "@platforms//cpu:aarch64": _CORE_CACHE | {"SYMCRYPT_TARGET_ARCH": "ARM64"},
+        "@platforms//cpu:" + cpu: _CORE_CACHE | gnu_cmake_tools(cpu) | {"SYMCRYPT_TARGET_ARCH": arch}
+        for cpu, arch in [("x86_64", "AMD64"), ("aarch64", "ARM64")]
     }),
     configuration = "Release",
     env = {

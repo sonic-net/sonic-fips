@@ -1,16 +1,20 @@
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 
+PROVIDER_PLATFORMS = {
+    "aarch64": "@symcrypt_openssl_src//:cmake-toolchain/LinuxUserMode-ARM64.cmake",
+    "x86_64": "@symcrypt_openssl_src//:cmake-toolchain/LinuxUserMode-AMD64.cmake",
+}
+
 _PROVIDER_CACHE = {
     "CMAKE_BUILD_TYPE": "Release",
     # Installed consumers use their declared loader/library paths. Avoid
     # CMake build-RPATH padding that survives its install-time RPATH removal.
     "CMAKE_SKIP_RPATH": "ON",
     "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+    # Keep the declared GCC toolchain when the upstream ARM platform file runs.
+    "SCOSSL_USE_DEFAULT_COMPILER": "ON",
     "CMAKE_INSTALL_LIBDIR": "lib",
     "CMAKE_INSTALL_INCLUDEDIR": "include",
-    # Run after project initializes the declared compiler flags: the upstream
-    # CPU file appends to CMAKE_C_FLAGS and must not replace CMAKE_C_FLAGS_INIT.
-    "CMAKE_PROJECT_SymCrypt-OpenSSL_INCLUDE": "$(execpath :provider_platform)",
     "OPENSSL_ENGINES": "lib",
     "OPENSSL_PROVIDERS": "lib",
     "OPENSSL_INCLUDE_DIR": "$$EXT_BUILD_DEPS$$/build/usr/include",
@@ -31,9 +35,14 @@ def symcrypt_provider(name, testonly = False, uncached = False):
         testonly = testonly,
         tags = ["no-cache"] if uncached else [],
         build_args = ["-j4"],
-        build_data = [":provider_platform"],
+        build_data = select({
+            "@platforms//cpu:" + cpu: [platform]
+            for cpu, platform in PROVIDER_PLATFORMS.items()
+        }),
         cache_entries = select({
             "@platforms//cpu:" + cpu: _PROVIDER_CACHE | {
+                # The target CPU file appends flags after CMake initializes them.
+                "CMAKE_PROJECT_SymCrypt-OpenSSL_INCLUDE": "$(execpath {})".format(PROVIDER_PLATFORMS[cpu]),
                 "OPENSSL_CRYPTO_LIBRARY": "$$EXT_BUILD_DEPS$$/build/usr/lib/" + triplet + "/libcrypto.so.3",
                 "OPENSSL_SSL_LIBRARY": "$$EXT_BUILD_DEPS$$/build/usr/lib/" + triplet + "/libssl.so.3",
             }
