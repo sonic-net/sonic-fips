@@ -87,3 +87,15 @@ short/long-flag executable bytes and rejection of driver-only `CPPFLAGS`.
 CI explicitly installs these test tools. This small configure fixture does not
 test cryptography; the original crypto suite, real source-OpenSSL loader check
 and installed runtime/debug package tests remain required separately.
+
+## Configure probe runtime
+
+The adapter runs generated Autoconf `conftest` programs through the loader
+from the declared build-tools runtime, with source OpenSSL before dependency
+libraries. It does not globally export target `LD_LIBRARY_PATH` into host
+shells or build utilities. Both generated Autoconf execution sites must match;
+a changed generator fails closed instead of silently bypassing feature probes.
+The native configure fixture checks both successful and failing runtime probes
+in addition to the existing compiler/response-file checks. Its native loader
+fixture is not evidence of Ubuntu-host/Trixie-target or ARM compatibility;
+those require the separate full source and installed-package checks.
