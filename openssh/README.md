@@ -127,3 +127,15 @@ original mismatch check to reject it with the real source library unchanged.
 This bounded configure test disables optional client features; the separate
 full production build, original unit/compatibility suite and private-client
 smoke retain all existing normal-package features.
+
+## Configure probe runtime
+
+The adapter runs generated Autoconf `conftest` programs through the loader
+from the declared build-tools runtime, with source OpenSSL before dependency
+libraries. It does not globally export target `LD_LIBRARY_PATH` into host
+shells or build utilities. Both generated Autoconf execution sites must match;
+a changed generator fails closed instead of silently bypassing feature probes.
+The native configure fixture checks both successful and failing runtime probes
+in addition to the existing compiler/response-file checks. Its native loader
+fixture is not evidence of Ubuntu-host/Trixie-target or ARM compatibility;
+those require the separate full source and installed-package checks.

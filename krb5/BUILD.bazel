@@ -53,7 +53,6 @@ exports_files([
         "BAZEL_PKGCONFIG_FILES": "$(locations @krb5_deps//:pkgconfig)",
         "OPENSSL_CONF": "/dev/null",
         "LDFLAGS": "-Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
-        "LD_LIBRARY_PATH": "$$EXT_BUILD_DEPS/build/usr/lib/x86_64-linux-gnu:$$EXT_BUILD_DEPS/build/usr/lib/aarch64-linux-gnu:$$EXT_BUILD_DEPS/lib",
     },
     features = ["-sanitize_pwd"],
     lib_source = "@krb5_src//src:sources",

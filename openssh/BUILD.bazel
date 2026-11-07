@@ -79,13 +79,11 @@ _BUILD_ENV = {
             _BUILD_ENV,
             # OpenSSH's prefix probe uses lib/, while SONiC installs multiarch.
             LDFLAGS = "-L$$EXT_BUILD_DEPS$$/build/usr/lib/x86_64-linux-gnu",
-            LD_LIBRARY_PATH = "$$EXT_BUILD_DEPS$$/build/usr/lib/x86_64-linux-gnu:$$EXT_BUILD_DEPS$$/lib",
         ),
         "@platforms//cpu:aarch64": dict(
             _BUILD_ENV,
             # OpenSSH's prefix probe uses lib/, while SONiC installs multiarch.
             LDFLAGS = "-L$$EXT_BUILD_DEPS$$/build/usr/lib/aarch64-linux-gnu",
-            LD_LIBRARY_PATH = "$$EXT_BUILD_DEPS$$/build/usr/lib/aarch64-linux-gnu:$$EXT_BUILD_DEPS$$/lib",
         ),
     }),
     features = ["-sanitize_pwd"],

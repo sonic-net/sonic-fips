@@ -40,6 +40,10 @@ AC_CONFIG_SRCDIR([probe.c])
 AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
 AC_PROG_CPP
+AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) { return 0; }]])],
+              [], [AC_MSG_ERROR([runtime probe failed])])
+AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) { return 1; }]])],
+              [AC_MSG_ERROR([negative runtime probe passed])], [])
 AC_PREPROC_IFELSE([AC_LANG_SOURCE([[#include <chosen.h>
 #if CHOSEN != 41
 #error dependency header precedence changed
@@ -61,14 +65,26 @@ all:
 	$(CC) $(CFLAGS) -I../source $(CPPFLAGS) ../probe.c $(LDFLAGS) -o ../make-probe
 	../make-probe > ../make-result
 ''')
-            env = {**os.environ, 'CC': tools['gcc'], 'AUTOCONF': tools['autoconf'],
+            # Model the declared build-tools layout without exporting target
+            # libraries to the host shell. CI supplies the native runtime here;
+            # the full source build separately checks the target sysroot.
+            runtime = root / 'runtime'
+            (runtime / 'bin').mkdir(parents=True)
+            (runtime / 'usr').mkdir()
+            (runtime / 'bin/autoconf').symlink_to(tools['autoconf'])
+            (runtime / 'usr/lib').mkdir()
+            for library in Path('/usr/lib').glob('*/ld-linux-*.so.*'):
+                (runtime / 'usr/lib' / library.name).symlink_to(library)
+            dependency = root / 'deps'
+            env = {**os.environ, 'CC': tools['gcc'], 'AUTOCONF': str(runtime / 'bin/autoconf'),
+                   'EXT_BUILD_DEPS': str(dependency),
                    'AUTOHEADER': tools['autoheader'],
                    'CFLAGS': '-O2 -g -ffile-prefix-map=' + str(root) + '=.'}
+            env.pop('LD_LIBRARY_PATH', None)
             if COMPONENT == 'krb5':
                 # The adapter discovers this directory before writing its
                 # original crypto-test target. This fixture does not run or
                 # claim to validate crypto; the separate package CI does that.
-                dependency = root / 'deps'
                 crypto = dependency / 'build/usr/lib/test-native/libcrypto.so.3'
                 crypto.parent.mkdir(parents=True)
                 crypto.touch()
@@ -103,6 +119,9 @@ all:
                 for command in (['/bin/sh', str(ADAPTER)], [tools['make']]):
                     result = subprocess.run(command, cwd=root, env=current, capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                generated = (root / 'configure').read_text()
+                self.assertEqual(generated.count("ac_try='\"$SONIC_PROBE_LOADER\" --library-path"), 2)
+                self.assertNotIn("ac_try='./conftest", generated)
                 self.assertEqual((root / 'make-result').read_text(), '42:quoted value\n')
                 symbols = subprocess.check_output([tools['readelf'], '-Ws', str(root / 'make-probe')], text=True)
                 value = next(line.split()[1] for line in symbols.splitlines() if line.endswith(' flag_order'))
@@ -111,6 +130,22 @@ all:
                 self.assertNotIn(str(root), debug, 'driver prefix maps lost')
                 results.append(hashlib.sha256((root / 'make-probe').read_bytes()).hexdigest())
             self.assertEqual(results[0], results[1], 'response transport changed compiled bytes')
+            # A generator change must not silently skip interception.
+            changed_generator = root / 'changed-autoconf'
+            changed_generator.write_text('#!/bin/sh\n' + shlex.quote(tools['autoconf']) +
+                                         ' "$@"\n' +
+                                         "sed -i \"s|ac_try='./conftest|ac_try='./unexpected|g\" configure\n")
+            changed_generator.chmod(0o755)
+            autoconf = runtime / 'bin/autoconf'
+            autoconf.unlink()
+            autoconf.symlink_to(changed_generator)
+            rejected = subprocess.run(['/bin/sh', str(ADAPTER)], cwd=root,
+                                      env={**env, 'CPPFLAGS': short_cpp, 'LDFLAGS': short_ld},
+                                      capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0, 'changed generator bypassed the loader assertion')
+            self.assertNotIn("ac_try='./conftest", (root / 'configure').read_text())
+            autoconf.unlink()
+            autoconf.symlink_to(tools['autoconf'])
             bad = subprocess.run(['/bin/sh', str(ADAPTER)], cwd=root,
                                  env={**env, 'CPPFLAGS': '-Wl,--as-needed', 'LDFLAGS': ''},
                                  capture_output=True, text=True)

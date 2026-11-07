@@ -11,9 +11,21 @@ if ! $CC ${CFLAGS:-} "-Wp,@$cppflags_file" -x c -fsyntax-only /dev/null; then
     exit 1
 fi
 export CPPFLAGS="-Wp,@$cppflags_file"
-"$AUTOCONF" --include=config
+# Force regeneration: a prior invocation may have patched the cached output.
+"$AUTOCONF" --force --include=config
 "$AUTOHEADER" --include=config
 export PATH="$KERBEROS_BUILD_TOOLS/bin:$PATH"
+# Autoconf runs target conftest ELFs. Use the matching declared loader and
+# source-built OpenSSL before Debian dependencies, without exporting target
+# libc into host shell/coreutils processes or weakening feature probes.
+SONIC_PROBE_RUNTIME=${AUTOCONF%/bin/autoconf}
+SONIC_PROBE_LOADER=$(find "$SONIC_PROBE_RUNTIME/usr/lib" -name 'ld-linux-*.so.*' -print | head -n 1)
+test -n "$SONIC_PROBE_LOADER"
+SONIC_PROBE_LIBS="$EXT_BUILD_DEPS/build/usr/lib/x86_64-linux-gnu:$EXT_BUILD_DEPS/build/usr/lib/aarch64-linux-gnu:$EXT_BUILD_DEPS/lib:$SONIC_PROBE_RUNTIME/usr/lib/x86_64-linux-gnu:$SONIC_PROBE_RUNTIME/usr/lib/aarch64-linux-gnu"
+export SONIC_PROBE_LOADER SONIC_PROBE_LIBS
+# The generated Autoconf runner has two literal ac_try executable sites.
+test "$(grep -c "ac_try='./conftest" configure)" = 2
+sed -i "s|ac_try='./conftest|ac_try='\"\$SONIC_PROBE_LOADER\" --library-path \"\$SONIC_PROBE_LIBS\" ./conftest|g" configure
 export CPP="$CC ${CFLAGS:-} -E"
 # Some upstream test-program rules (notably t_trval) link with CC alone.
 # Keep the declared startup objects and library paths on those invocations.

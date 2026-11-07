@@ -32,6 +32,19 @@ def main():
             assert (path.parent / target).resolve().is_relative_to(installed)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.symlink_to(target)
+        # The adapter expects Autoconf in the declared build-tools layout.
+        # Native CI supplies this fixture's loader; source builds use the
+        # declared target runtime. Never export its libc into host tools.
+        runtime = root / "runtime"
+        (runtime / "bin").mkdir(parents=True)
+        (runtime / "usr").mkdir()
+        (runtime / "bin/autoconf").symlink_to(tools["autoconf"])
+        (runtime / "usr/lib").mkdir()
+        for library in Path("/usr/lib").glob("*/ld-linux-*.so.*"):
+            (runtime / "usr/lib" / library.name).symlink_to(library)
+        dependency = root / "deps"
+        dependency.mkdir()
+        (dependency / "build").symlink_to(installed, target_is_directory=True)
         prefix = installed / "usr"
         libraries = prefix / "lib" / triplet
         assert (libraries / "libcrypto.so").exists()
@@ -55,16 +68,17 @@ def main():
             env = {
                 **os.environ,
                 "CC": tools["gcc"],
-                "AUTOCONF": tools["autoconf"],
+                "AUTOCONF": str(runtime / "bin/autoconf"),
+                "EXT_BUILD_DEPS": str(dependency),
                 "AUTOHEADER": tools["autoheader"],
                 "CFLAGS": "-O2",
                 # Simulate a transitive SDK appearing before the source SDK.
                 # Upstream --with-ssl-dir must prepend the selected owner.
                 "CPPFLAGS": "-I" + str(bad / "include") + " -I" + str(prefix / "include" / triplet),
                 "LDFLAGS": "-L" + str(libraries) + " -Wl,-rpath-link=" + str(libraries) + " -Wl,-t",
-                "LD_LIBRARY_PATH": str(libraries),
                 "OPENSSL_CONF": "/dev/null",
             }
+            env.pop("LD_LIBRARY_PATH", None)
             command = [
                 "/bin/sh", "bazel-configure", "--prefix=/usr",
                 "--with-ssl-dir=" + str(selected), "--without-rpath",
