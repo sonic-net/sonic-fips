@@ -27,8 +27,9 @@ _BUILD_ENV = {
     "AUTOHEADER": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/autoheader",
     "PERL": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl",
     "PKGCONFIG": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/pkgconf",
-    # CcInfo supplies declared include/link flags. Do not consult a host
-    # krb5-config script when pkg-config has no external package metadata.
+    "BAZEL_PKGCONFIG_FILES": "$(locations @openssh_deps//libedit-dev:pkgconfig)",
+    # Keep Kerberos discovery on declared CcInfo rather than a host script;
+    # only libedit's package metadata closure is exposed here.
     "KRB5CONF": "/nonexistent-krb5-config",
     "OPENSSL_CONF": "/dev/null",
 }
@@ -41,7 +42,10 @@ _BUILD_ENV = {
         "DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
         "ASKPASS_PROGRAM=/usr/bin/ssh-askpass",
     ],
-    build_data = ["@sonic_build_infra//tools/build_tools:configure_runtime"] + ([":client_test.sh"] if name == "upstream_tests" else []),
+    build_data = [
+        "@sonic_build_infra//tools/build_tools:configure_runtime",
+        "@openssh_deps//libedit-dev:pkgconfig",
+    ] + ([":client_test.sh"] if name == "upstream_tests" else []),
     configure_command = "bazel-configure",
     configure_in_place = True,
     configure_options = [
@@ -257,8 +261,12 @@ py_test(
     args = [
         "$(rootpath :configure.sh)",
         "openssh",
+        "$(rootpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/pkgconf",
     ],
-    data = [":configure.sh"],
+    data = [
+        ":configure.sh",
+        "@sonic_build_infra//tools/build_tools:configure_runtime",
+    ],
     main = "//:tools/bazel/configure_flags_test.py",
     # Native Trixie CI supplies GCC14/Autoconf/Make for the adapter regression.
     tags = ["local"],
@@ -269,6 +277,7 @@ py_test(
     srcs = ["source_openssl_test.py"],
     args = [
         "$(rootpath @openssh_src//:source.json)",
+        "$(rootpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/pkgconf",
         "$(rootpath //openssl:libssl3t64_pkg)",
         "$(rootpath //openssl:libssl_dev_pkg)",
         "$(rootpath //openssl:openssl_pkg)",
@@ -279,6 +288,7 @@ py_test(
         "//openssl:openssl_pkg",
         "@openssh_src//:source.json",
         "@openssh_src//:sources",
+        "@sonic_build_infra//tools/build_tools:configure_runtime",
     ],
     tags = ["local"],
     deps = ["//openssl:package_test_utils"],

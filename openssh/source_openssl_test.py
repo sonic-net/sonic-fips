@@ -14,8 +14,9 @@ from openssl.package_test import unpack_files
 
 
 def main():
-    assert len(sys.argv) == 5
+    assert len(sys.argv) == 6
     source = Path(sys.argv[1]).resolve().parent
+    pkgconf = Path(sys.argv[2]).resolve()
     tools = {name: shutil.which(name) for name in ("gcc", "autoconf", "autoheader")}
     assert all(tools.values()), "Native CI declares GCC14 and Autoconf"
     assert subprocess.check_output([tools["gcc"], "-dumpversion"], text=True).strip().split(".")[0] == "14"
@@ -24,7 +25,7 @@ def main():
         root = Path(temporary)
         installed = root / "installed"
         links = {}
-        for archive in sys.argv[2:]:
+        for archive in sys.argv[3:]:
             links.update({name: entry.linkname for name, entry in unpack_files(archive, installed).items()
                           if entry.issym() and not Path(entry.linkname).is_absolute()})
         for name, target in links.items():
@@ -70,6 +71,11 @@ def main():
                 "CC": tools["gcc"],
                 "AUTOCONF": str(runtime / "bin/autoconf"),
                 "EXT_BUILD_DEPS": str(dependency),
+                # This fixture disables libedit; keep its metadata set empty
+                # while using the adapter's declared, isolated pkgconf context.
+                "EXT_BUILD_ROOT": str(root),
+                "BAZEL_PKGCONFIG_FILES": "",
+                "PKGCONFIG": str(pkgconf),
                 "AUTOHEADER": tools["autoheader"],
                 "CFLAGS": "-O2",
                 # Simulate a transitive SDK appearing before the source SDK.
@@ -87,7 +93,6 @@ def main():
             ]
             completed = subprocess.run(command, cwd=work, env=env, capture_output=True, text=True)
             output = completed.stdout + completed.stderr
-            log = (work / "config.log").read_text()
             if negative:
                 assert completed.returncode != 0, output
                 assert "Your OpenSSL headers do not match your" in output, output
@@ -97,6 +102,7 @@ def main():
                 assert "checking whether OpenSSL's headers match the library... yes" in output, output
                 # Linker tracing establishes the selected library file, not
                 # merely the runtime SONAME or an inferred header version.
+                log = (work / "config.log").read_text()
                 assert str(libraries / "libcrypto.so") in log, log
             records.append({
                 "case": "mismatched-header-rejected" if negative else "source-header-and-library-selected",
