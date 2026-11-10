@@ -1,5 +1,5 @@
 Package: symcrypt-openssl
-Version: 1.11.0
+Version: 1.8.0-24-gd744cf2-2
 Section: devel
 Priority: optional
 Architecture: all
