@@ -108,8 +108,8 @@ check does not establish that the full suite passed.
 ## Shared package imports
 
 Distroless package imports use the published `rules_distroless`
-`0.9.4.sonic.6` module and the Debian GCC toolchains in `sonic-build-infra`
-`0.0.17-8baf1ad829c5095297d85148b042145b87d623a3`. Both are selected from the
+`0.9.4.sonic.20` module and the Debian GCC toolchains in `sonic-build-infra`
+`0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e`. Both are selected from the
 maintained SONiC registry `main` endpoint in local builds and CI. These landed
 replacements preserve normal ELF RUNPATH handling without the superseded
 transitive RPATH workaround.
