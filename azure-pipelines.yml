@@ -38,3 +38,51 @@ stages:
   dependsOn: []
   jobs:
   - template: .azure-pipelines/test-template-armhf.yml
+  - job: TestReleaseAutomation
+    pool:
+      vmImage: ubuntu-22.04
+    steps:
+    - checkout: self
+      persistCredentials: false
+    - bash: python3 -m unittest discover -s tests -v
+      displayName: Test release automation (offline)
+- stage: publish_github_release
+  displayName: Publish GitHub release archives
+  dependsOn:
+  - build
+  - test
+  # Defense in depth: the script repeats these checks before any GitHub write.
+  condition: and(eq(dependencies.build.result, 'Succeeded'), eq(dependencies.test.result, 'Succeeded'), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.Repository.Name'], 'sonic-net/sonic-fips'), ne(variables['System.PullRequest.IsFork'], 'True'))
+  jobs:
+  - job: release
+    pool:
+      vmImage: ubuntu-22.04
+    steps:
+    - checkout: self
+      persistCredentials: false
+    - task: DownloadPipelineArtifact@2
+      displayName: Download current amd64 packages
+      inputs:
+        buildType: current
+        artifact: fips-symcrypt-amd64
+        path: $(Pipeline.Workspace)/release-input/fips-symcrypt-amd64
+    - task: DownloadPipelineArtifact@2
+      displayName: Download current arm64 packages
+      inputs:
+        buildType: current
+        artifact: fips-symcrypt-arm64
+        path: $(Pipeline.Workspace)/release-input/fips-symcrypt-arm64
+    - task: DownloadPipelineArtifact@2
+      displayName: Download current armhf packages
+      inputs:
+        buildType: current
+        artifact: fips-symcrypt-armhf
+        path: $(Pipeline.Workspace)/release-input/fips-symcrypt-armhf
+    - bash: |
+        set -euo pipefail
+        python3 scripts/publish_github_release.py \
+          --artifacts "$(Pipeline.Workspace)/release-input" \
+          --build-id "$BUILD_BUILDID" --commit "$BUILD_SOURCEVERSION" --require-ci
+      displayName: Verify packages and publish release
+      env:
+        GH_TOKEN: $(GITHUB_TOKEN)
