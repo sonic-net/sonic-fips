@@ -10,7 +10,7 @@ import platform
 import shutil
 import subprocess
 
-from tools.bazel.ci import audit, command, retain_resolution
+from tools.bazel.ci import audit, command, retain_resolution, write_action_graph
 
 TARGET = "//openssl/integration:openssl_symcrypt_test"
 RUNTIME = "//symcrypt:runtime"
@@ -54,8 +54,8 @@ def main():
              "--jobs=4", *args.bazel_arg]
     try:
         with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-            subprocess.run(["bazel", "aquery", f"deps(set({TARGET} {RUNTIME}))", *flags,
-                            "--include_file_write_contents", "--output=jsonproto"], stdout=stdout, stderr=stderr, check=True)
+            write_action_graph(["bazel"], f"deps(set({TARGET} {RUNTIME}))",
+                               flags, stdout, stderr)
         write_json(output / "audit.json", audit(json.loads((output / "actions.json").read_text())))
         retain_resolution(output, args.architecture, args.bazel_arg)
         command(["bazel", "test", TARGET, *flags, "--nocache_test_results",

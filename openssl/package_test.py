@@ -55,7 +55,7 @@ def check_symbols(binary, symbols, scratch, *, prefix_mapped=False):
     assert ".debug_info" not in run("readelf", "-SW", str(binary))
     assert ".debug_info" in run("readelf", "-SW", str(debug))
     if prefix_mapped:
-        paths = run("readelf", "-p", ".debug_line_str", "-p", ".debug_str", str(debug))
+        paths = run("readelf", "--decompress", "-p", ".debug_line_str", "-p", ".debug_str", str(debug))
         assert "/execroot/" not in paths, paths
     section = scratch / "debuglink"
     run("objcopy", "--dump-section", f".gnu_debuglink={section}", str(binary), str(scratch / "copy"))

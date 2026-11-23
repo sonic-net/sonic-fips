@@ -68,7 +68,7 @@ def retain_resolution(output, architecture, bazel_args):
     }, indent=2) + "\n")
 
 
-def audit(graph):
+def artifact_paths(graph):
     fragments = {item["id"]: item for item in graph["pathFragments"]}
 
     def path(key):
@@ -76,7 +76,35 @@ def audit(graph):
         parent = path(item["parentId"]) + "/" if item.get("parentId") else ""
         return parent + item["label"]
 
-    artifacts = {item["id"]: path(item["pathFragmentId"]) for item in graph["artifacts"]}
+    return {item["id"]: path(item["pathFragmentId"]) for item in graph["artifacts"]}
+
+
+def write_action_graph(bazel, expression, flags, output, log, cwd=None):
+    def query(selector, *options):
+        return json.loads(subprocess.check_output(
+            [*bazel, "aquery", selector, *flags, "--output=jsonproto", *options], cwd=cwd, stderr=log,
+        ))
+
+    # Bazel 8.5.1 reads generated symlink targets when expanding runfiles
+    # manifests. Keep their actions in the graph without reading unbuilt paths.
+    graph = query(expression, "--noinclude_file_write_contents")
+    with_contents = query(f'mnemonic("^(?!SourceSymlinkManifest$).*", {expression})',
+                          "--include_file_write_contents", "--noinclude_commandline")
+    # IDs are local to each query. A shared action can occur under multiple
+    # owners. Attach its bytes to each record with the same key and output.
+    content_paths = artifact_paths(with_contents)
+    contents = {(action["actionKey"], content_paths[action["primaryOutputId"]]): action["fileContents"]
+                for action in with_contents["actions"] if "fileContents" in action}
+    paths = artifact_paths(graph)
+    for action in graph["actions"]:
+        key = (action.get("actionKey"), paths[action["primaryOutputId"]])
+        if key in contents:
+            action["fileContents"] = contents[key]
+    json.dump(graph, output)
+
+
+def audit(graph):
+    artifacts = artifact_paths(graph)
     for action in graph["actions"]:
         outputs = [artifacts[key] for key in action.get("outputIds", [])]
         text = " ".join(action.get("arguments", [])) + "\n" + action.get("fileContents", "")
@@ -108,9 +136,8 @@ def main():
     if args.architecture == "amd64":
         tests.append("//openssl:build_info_test")
     with (output / "actions.json").open("w") as stdout, (output / "audit.log").open("w") as stderr:
-        subprocess.run(["bazel", "aquery", "deps(set(" + " ".join(tests + ["//openssl:runtime_packages.json"]) + "))", *flags,
-                        "--include_file_write_contents", "--output=jsonproto"],
-                       stdout=stdout, stderr=stderr, check=True)
+        write_action_graph(["bazel"], "deps(set(" + " ".join(tests + ["//openssl:runtime_packages.json"]) + "))",
+                           flags, stdout, stderr)
     report = audit(json.loads((output / "actions.json").read_text()))
     (output / "audit.json").write_text(json.dumps(report, indent=2) + "\n")
     retain_resolution(output, args.architecture, args.bazel_arg)

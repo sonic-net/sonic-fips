@@ -4,6 +4,11 @@
 set -eu
 [ "$#" -eq 1 ]
 receipt=$1
+# Run the newly linked clients against the same source-built OpenSSL that
+# configured and linked them, even when the native runner ships a newer one.
+openssl_lib="$EXT_BUILD_DEPS/build/usr/lib/$(uname -m)-linux-gnu"
+test -f "$openssl_lib/libcrypto.so.3"
+export LD_LIBRARY_PATH="$openssl_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 test_home=$(mktemp -d /tmp/sonic-openssh-test.XXXXXX)
 agent_pid=
 cleanup() {
