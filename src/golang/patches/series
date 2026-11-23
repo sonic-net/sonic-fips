@@ -1,2 +1,3 @@
 openssl-config.patch
 disable-vdso-test-for-armhf.patch
+preserve-fips140-archives.patch
