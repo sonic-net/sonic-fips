@@ -94,3 +94,18 @@ Support Federal Information Processing Standards (FIPS) for SONiC
   (symcrypt) SCOSSL (SymCrypt engine for OpenSSL)
   admin@sonic:~$ 
   ```
+
+### GitHub release archives
+
+A successful **main** pipeline run (both the three-architecture build stage and the test stage) publishes GitHub Releases only; no CDN upload is used. PR and fork builds cannot run the publishing stage. Configure a masked Azure pipeline secret variable named `GITHUB_TOKEN` with GitHub **Contents: write** permission for `sonic-net/sonic-fips` before enabling the stage; do not put its value in YAML or command arguments. The publishing agent needs `gh`, `dpkg-deb`, and Python 3.
+
+The job downloads the **current run's** `fips-symcrypt-amd64`, `fips-symcrypt-arm64`, and `fips-symcrypt-armhf` pipeline artifacts. It checks each `.deb` filename against its Debian `Package`, `Version`, and `Architecture` metadata, requires the SymCrypt package version to match `src/SymCrypt-OpenSSL-Debian/debian/control` in every architecture, and rejects conflicting duplicates or inconsistent `all` packages. The current version is `1.8.0-24-gd744cf2-3`; later source version bumps need no publisher change. The release stage and its script both restrict publication to the canonical non-PR `main` build; offline publisher tests also run in the test stage on PRs. Each release contains exactly:
+
+- `fips-symcrypt-amd64.tar.gz`
+- `fips-symcrypt-arm64.tar.gz`
+- `fips-symcrypt-armhf.tar.gz`
+- `SHA256SUMS` (SHA-256 of those three archives)
+
+The normal tag is the verified SymCrypt Debian version. If that release exists and its archived **`.deb` filenames and SHA-256 contents** are identical, the job skips publishing. If they differ, the job uses the immutable `<version>-build-<AzureBuildId>` fallback tag. An existing fallback with identical packages is also skipped; a different fallback, a draft/prerelease, an incomplete/corrupt release, or an orphaned tag causes a loud failure for manual inspection. The script creates a tag only if absent, never updates a tag or replaces an asset. It uploads to a draft, downloads all assets again, checks archive sums and package hashes against the input artifacts, verifies the tag still points to the source commit, and only then publishes. A failed operation may leave a draft or an orphaned tag requiring manual attention; retries do not silently repair them.
+
+For an offline check of the publisher: `python3 -m unittest discover -s tests -v`. This release workflow verifies package integrity and provenance within the current Azure run; it does **not** assert FIPS certification or validation.
