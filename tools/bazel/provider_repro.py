@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 
-from ci import audit
+from ci import audit, write_action_graph
 
 
 OUTPUTS = ("symcryptengine.so", "symcryptprovider.so")
@@ -38,9 +38,7 @@ def compare_build_roots(output, flags, prefix="//symcrypt:"):
                 if variant == "short":
                     graph_path = directory / "actions.json"
                     with graph_path.open("w") as stream:
-                        subprocess.run(bazel + ["aquery", "deps(" + target + ")", *flags,
-                                       "--include_file_write_contents", "--output=jsonproto"],
-                                       stdout=stream, stderr=log, check=True)
+                        write_action_graph(bazel, "deps(" + target + ")", flags, stream, log)
                     graph = json.loads(graph_path.read_text())
                     record["audit"] = audit(graph)
                     owners = {item["id"]: item["label"] for item in graph["targets"]}
