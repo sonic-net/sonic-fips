@@ -47,7 +47,7 @@ diff --git a/upstream/modules/linux/common/CMakeLists.txt b/upstream/modules/lin
  
  add_custom_target(jitterentropy_lib ALL
 -  COMMAND make clean
-+  COMMAND ${CMAKE_MAKE_PROGRAM} clean
++  COMMAND ${CMAKE_MAKE_PROGRAM} "CC=${CMAKE_C_COMPILER}" clean
    COMMAND ${CMAKE_COMMAND} -E
      env "CC=${CMAKE_C_COMPILER}"
 +    env "AR=${CMAKE_AR}"
