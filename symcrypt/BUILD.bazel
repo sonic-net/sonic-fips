@@ -61,6 +61,7 @@ declare_gnu_tools()
 
 _CORE_CACHE = {
     "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
     "Python3_EXECUTABLE": "$(execpath :python)",
     "SYMCRYPT_FIPS_BUILD": "ON",
     "SYMCRYPT_FIPS_POSTPROCESS": "ON",
