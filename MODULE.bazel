@@ -58,7 +58,7 @@ apt.install(
         "trixie-security",
     ],
 )
-use_repo(apt, "openssl_deps")
+use_repo(apt, "base_debian", "openssl_deps")
 
 openssl_source = use_repo_rule("//openssl:sources.bzl", "openssl_source")
 
