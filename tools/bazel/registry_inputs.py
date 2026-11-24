@@ -14,14 +14,14 @@ from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MAIN = "https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/main"
+MAIN = "https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main"
 
 
 def record(artifacts, snapshot=None, registry_mirrors=False):
     registry = MAIN
     configuration = (ROOT / ".bazelrc").read_text()
     endpoints = [line for line in configuration.splitlines()
-                 if "--registry=" in line and "securely1g/sonic-bazel-registry/" in line]
+                 if "--registry=" in line and "sonic-net/sonic-bazel-registry/" in line]
     if endpoints != ["common --registry=" + MAIN]:
         raise ValueError("Expected exactly the canonical SONiC main registry endpoint")
     if snapshot:
@@ -32,7 +32,7 @@ def record(artifacts, snapshot=None, registry_mirrors=False):
     else:
         ref = "refs/heads/main"
         advertised = subprocess.check_output(
-            ["git", "ls-remote", "https://github.com/securely1g/sonic-bazel-registry.git", ref],
+            ["git", "ls-remote", "https://github.com/sonic-net/sonic-bazel-registry.git", ref],
             text=True).split()
         if len(advertised) != 2 or advertised[1] != ref or not re.fullmatch(r"[0-9a-f]{40}", advertised[0]):
             raise ValueError("Could not determine the selected registry branch revision")
