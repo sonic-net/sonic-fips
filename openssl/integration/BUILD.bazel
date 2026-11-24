@@ -7,8 +7,8 @@ _EXTRACT_PLUGINS = """set -euo pipefail
 mkdir -p "$(RULEDIR)/plugins/engines-3" "$(RULEDIR)/plugins/ossl-modules"
 "$(BSDTAR_BIN)" -xOf "$(execpath //symcrypt:runtime)" usr/lib/{triplet}/libsymcryptengine.so > "$(RULEDIR)/plugins/engines-3/symcryptengine.so"
 "$(BSDTAR_BIN)" -xOf "$(execpath //symcrypt:runtime)" usr/lib/{triplet}/ossl-modules/symcryptprovider.so > "$(RULEDIR)/plugins/ossl-modules/symcryptprovider.so"
-"$(BSDTAR_BIN)" -xOf "$(execpath //symcrypt:runtime)" usr/lib/{triplet}/libsymcrypt.so.103.13.0 > "$(RULEDIR)/plugins/libsymcrypt.so.103.13.0"
-ln -s libsymcrypt.so.103.13.0 "$(RULEDIR)/plugins/libsymcrypt.so.103"
+"$(BSDTAR_BIN)" -xOf "$(execpath //symcrypt:runtime)" usr/lib/{triplet}/libsymcrypt.so.103.8.0 > "$(RULEDIR)/plugins/libsymcrypt.so.103.8.0"
+ln -s libsymcrypt.so.103.8.0 "$(RULEDIR)/plugins/libsymcrypt.so.103"
 """
 
 # Copy only the packaged plugin bytes needed by OpenSSL's original test recipe.
@@ -20,7 +20,7 @@ genrule(
     outs = [
         "plugins/engines-3/symcryptengine.so",
         "plugins/ossl-modules/symcryptprovider.so",
-        "plugins/libsymcrypt.so.103.13.0",
+        "plugins/libsymcrypt.so.103.8.0",
         "plugins/libsymcrypt.so.103",
     ],
     cmd = select({
@@ -71,8 +71,8 @@ SONIC_PERL
 chmod +x "$$HARNESS_PERL"
 # OpenSSL's own test wrapper exposes the build directory to its loader.
 # Keep the sealed core there verbatim; do not rely on Perl retaining LD paths.
-cp "$$plugin_dir/libsymcrypt.so.103.13.0" "$$BUILD_TMPDIR/libsymcrypt.so.103.13.0"
-ln -s libsymcrypt.so.103.13.0 "$$BUILD_TMPDIR/libsymcrypt.so.103"
+cp "$$plugin_dir/libsymcrypt.so.103.8.0" "$$BUILD_TMPDIR/libsymcrypt.so.103.8.0"
+ln -s libsymcrypt.so.103.8.0 "$$BUILD_TMPDIR/libsymcrypt.so.103"
 mkdir -p "$$INSTALLDIR/evidence"
 "$$EXT_BUILD_ROOT/$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/make" -j4 test "libdir=$$plugin_dir" 2>&1 | tee "$$INSTALLDIR/evidence/suite.log"
 """,

@@ -51,17 +51,17 @@ def main():
 
         libdir = root / "usr/lib" / triplet
         installed_files = {f"usr/lib/{triplet}/" + name for name in [
-            "libsymcrypt.so.103.13.0", "libsymcryptengine.so", "ossl-modules/symcryptprovider.so",
+            "libsymcrypt.so.103.8.0", "libsymcryptengine.so", "ossl-modules/symcryptprovider.so",
         ]} | {"usr/share/doc/symcrypt-openssl/" + name for name in ["SymCrypt-LICENSE.txt", "LICENSE", "jitterentropy-LICENSE.bsd"]}
         installed_links = {f"usr/lib/{triplet}/" + name for name in [
             "libsymcrypt.so.103", "libsymcrypt.so", "symcryptengine.so", "engines-3/symcryptengine.so",
         ]}
         assert {name for name, item in entries.items() if item.isfile()} == installed_files
         assert {name for name, item in entries.items() if item.issym()} == installed_links
-        core = libdir / "libsymcrypt.so.103.13.0"
+        core = libdir / "libsymcrypt.so.103.8.0"
         assert core.read_bytes() == Path(raw_core).read_bytes(), "sealed core changed during packaging"
-        expected_build = (b"v103.13.0_HEAD_2026-08-05T21:48:57+00:00_"
-                          b"286762b7730e2b780678f5ab11fef2b1bad639e0_2026-08-05T21:48:57+00:00")
+        expected_build = (b"v103.8.0_HEAD_2025-01-28T00:44:15+00:00_"
+                          b"53be637dab201a4c9d95e1cf58040c85d71cf3c2_2025-01-28T00:44:15+00:00")
         assert expected_build in core.read_bytes(), "installed SymCrypt lost the declared build timestamp"
         assert (libdir / "libsymcrypt.so").resolve() == core
         assert (libdir / "engines-3/symcryptengine.so").resolve() == libdir / "libsymcryptengine.so"
@@ -93,7 +93,7 @@ def main():
                         value = attrs[key].value
                         assert b"/sandbox/" not in value and b"/execroot/" not in value, (key, value)
             assert assembly_units, "Core debug file omitted generated assembly compilation units"
-        check_gdb(core, symbols, "SymCryptModuleMain", "modules/posix/common/module.c")
+        check_gdb(core, symbols, "SymCryptModuleMain", "modules/linux/common/module.c")
         expected_debug = {str(debug.relative_to(symbols))}
         for binary in [libdir / "libsymcryptengine.so", libdir / "ossl-modules/symcryptprovider.so"]:
             check_symbols(binary, symbols, scratch)

@@ -1,5 +1,6 @@
 """Exercise the installed OpenSSL programs and their matching debug symbols."""
 
+from email.utils import parsedate_to_datetime
 import hashlib
 import os
 from pathlib import Path, PurePosixPath
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import zlib
 
 
@@ -79,12 +81,12 @@ def check_gdb(binary, symbols, function, source):
     assert re.search(r"Line [0-9]+ of .*" + re.escape(source), output), output
 
 
-def check_development(archive, root, multiarch, scratch):
+def check_development(archive, root, multiarch, scratch, epoch):
     """Compile a consumer against installed headers and both library formats."""
     entries = unpack_files(archive, root)
     for name, member in entries.items():
         assert (member.uid, member.gid) == (0, 0), (name, member.uid, member.gid)
-        assert member.mtime == 1787585182, (name, member.mtime)
+        assert member.mtime == epoch, (name, member.mtime, epoch)
         if member.isfile():
             assert member.mode == 0o644, (name, member.mode)
         assert not name.endswith(".so.3"), name
@@ -145,7 +147,10 @@ int main(void) {
 
 
 def main():
-    assert len(sys.argv) == 6
+    assert len(sys.argv) == 7
+    # Match Make’s dpkg-parsechangelog -STimestamp plus one day.
+    trailer = next(line for line in Path(sys.argv[6]).read_text().splitlines() if line.startswith(" -- "))
+    epoch = int(parsedate_to_datetime(trailer.rsplit("  ", 1)[1]).timestamp()) + 86400
     multiarch = {"x86_64": "x86_64-linux-gnu", "aarch64": "aarch64-linux-gnu"}[platform.machine()]
     with tempfile.TemporaryDirectory(dir=os.environ.get("TEST_TMPDIR")) as temporary:
         root = Path(temporary) / "root"
@@ -176,6 +181,7 @@ def main():
         environment = dict(os.environ, LD_LIBRARY_PATH=str(library_dir), OPENSSL_CONF=str(root / "etc/ssl/openssl.cnf"))
         version = run(str(command), "version", "-a", env=environment)
         assert "OpenSSL 3.5.7" in version, version
+        assert "built on: " + time.asctime(time.gmtime(epoch)) + " UTC" in version.splitlines(), version
         compiler = next(line for line in version.splitlines() if line.startswith("compiler: "))
         assert compiler.startswith("compiler: ./external/") and "/execroot/" not in compiler, compiler
         assert 'OPENSSLDIR: "/usr/lib/ssl"' in version, version
@@ -188,7 +194,7 @@ def main():
             *[str(library_dir / name) for name in names], env=environment)
         check_gdb(command, symbols, "main", "apps/openssl.c")
         check_gdb(library_dir / "libcrypto.so.3", symbols, "OPENSSL_init_crypto", "crypto/init.c")
-        check_development(sys.argv[5], root, multiarch, Path(temporary))
+        check_development(sys.argv[5], root, multiarch, Path(temporary), epoch)
         print(f"Installed OpenSSL 3.5.7: {len(names) + 1} runtime/debug pairs, CLI digest, library loading and GDB passed")
 
 

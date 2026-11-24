@@ -1,13 +1,14 @@
 Use declared CMake tools for SymCrypt's existing post-build steps and jitterentropy.
-Source: Microsoft/SymCrypt 286762b7730e2b780678f5ab11fef2b1bad639e0.
+Source: Microsoft/SymCrypt 53be637dab201a4c9d95e1cf58040c85d71cf3c2.
 The order, flags, entropy generation, and integrity calculation remain unchanged.
 CMAKE_STRIP/CMAKE_OBJCOPY are the same pinned GNU binutils family used by SONiC's
 Bazel toolchain. CMAKE_MAKE_PROGRAM and CMAKE_AR prevent host-tool fallback.
 Pass the declared shared-link flags to jitterentropy as well as its compile flags.
-diff --git a/upstream/modules/posix/common/ModuleCommon.cmake b/upstream/modules/posix/common/ModuleCommon.cmake
---- a/upstream/modules/posix/common/ModuleCommon.cmake
-+++ b/upstream/modules/posix/common/ModuleCommon.cmake
-@@ -20,10 +20,5 @@
+diff --git a/upstream/modules/linux/common/ModuleCommon.cmake b/upstream/modules/linux/common/ModuleCommon.cmake
+--- a/upstream/modules/linux/common/ModuleCommon.cmake
++++ b/upstream/modules/linux/common/ModuleCommon.cmake
+@@ -19,12 +19,6 @@
+ )
  
 -# Determine the which executable to use for stripping binaries
 -if(SYMCRYPT_TARGET_ARCH MATCHES ARM AND NOT CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
@@ -17,31 +18,42 @@ diff --git a/upstream/modules/posix/common/ModuleCommon.cmake b/upstream/modules
 -    set(STRIP_COMMAND strip)
 -    set(OBJCOPY_COMMAND objcopy)
 -endif()
-+# Use the declared tools for the target ELF on both native and cross builds.
 +set(STRIP_COMMAND "${CMAKE_STRIP}")
 +set(OBJCOPY_COMMAND "${CMAKE_OBJCOPY}")
  
-diff --git a/upstream/modules/posix/common/CMakeLists.txt b/upstream/modules/posix/common/CMakeLists.txt
---- a/upstream/modules/posix/common/CMakeLists.txt
-+++ b/upstream/modules/posix/common/CMakeLists.txt
-@@ -9,5 +9,5 @@
- if(SYMCRYPT_FIPS_BUILD)
-   set(jitter_cflags "${CMAKE_C_FLAGS} -fwrapv -fvisibility=hidden -DCONFIG_CRYPTO_CPU_JITTERENTROPY_SECURE_MEMORY")
--  set(jitter_ldflags "")
-+  set(jitter_ldflags "${CMAKE_SHARED_LINKER_FLAGS}")
+ target_link_options(${TARGET_NAME} PRIVATE
+diff --git a/upstream/modules/linux/common/CMakeLists.txt b/upstream/modules/linux/common/CMakeLists.txt
+--- a/upstream/modules/linux/common/CMakeLists.txt
++++ b/upstream/modules/linux/common/CMakeLists.txt
+@@ -8,14 +8,14 @@
  
-   if(SYMCRYPT_TARGET_ARCH MATCHES "X86")
-@@ -29,10 +29,11 @@
+ set(jitter_cflags "${CMAKE_C_FLAGS} -fwrapv -fvisibility=hidden -DCONFIG_CRYPTO_CPU_JITTERENTROPY_SECURE_MEMORY")
+-set(jitter_ldflags "")
++set(jitter_ldflags "${CMAKE_SHARED_LINKER_FLAGS}")
  
-   add_custom_target(jitterentropy_lib ALL
--    COMMAND make clean
-+    COMMAND ${CMAKE_MAKE_PROGRAM} clean
-     COMMAND ${CMAKE_COMMAND} -E
-       env "CC=${CMAKE_C_COMPILER}"
-+      env "AR=${CMAKE_AR}"
-       env "CFLAGS=${jitter_cflags}"
-       env "LDFLAGS=${jitter_ldflags}"
--      make
-+      ${CMAKE_MAKE_PROGRAM}
-     WORKING_DIRECTORY ${SYMCRYPT_SOURCE_DIR}/3rdparty/jitterentropy-library
-   )
+ if(SYMCRYPT_TARGET_ARCH MATCHES "X86")
+   set(jitter_cflags "${jitter_cflags} -m32")
+-  set(jitter_ldflags "-m32")
++  string(APPEND jitter_ldflags " -m32")
+ endif()
+ 
+ if (CMAKE_C_COMPILER_ID MATCHES "Clang" AND DEFINED CMAKE_C_COMPILER_TARGET)
+   set(jitter_cflags "--target=${CMAKE_C_COMPILER_TARGET} --sysroot=${CMAKE_SYSROOT_COMPILE} ${jitter_cflags}")
+-  set(jitter_ldflags "--target=${CMAKE_C_COMPILER_TARGET}")
++  string(APPEND jitter_ldflags " --target=${CMAKE_C_COMPILER_TARGET}")
+ endif()
+ 
+@@ -28,10 +28,11 @@
+ 
+ add_custom_target(jitterentropy_lib ALL
+-  COMMAND make clean
++  COMMAND ${CMAKE_MAKE_PROGRAM} "CC=${CMAKE_C_COMPILER}" clean
+   COMMAND ${CMAKE_COMMAND} -E
+     env "CC=${CMAKE_C_COMPILER}"
++    env "AR=${CMAKE_AR}"
+     env "CFLAGS=${jitter_cflags}"
+     env "LDFLAGS=${jitter_ldflags}"
+-    make
++    ${CMAKE_MAKE_PROGRAM}
+   WORKING_DIRECTORY ${SYMCRYPT_SOURCE_DIR}/3rdparty/jitterentropy-library
+ )

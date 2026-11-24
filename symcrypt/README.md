@@ -5,8 +5,8 @@ AMD64 and ARM64. It builds the exact public submodules selected by sonic-fips:
 
 | Input | Revision |
 | --- | --- |
-| SymCrypt 103.13.0 | `286762b7730e2b780678f5ab11fef2b1bad639e0` |
-| SymCrypt-OpenSSL 1.11.0 | `60d89642fcd042d099bc57e48e2e8381e9671899` |
+| SymCrypt 103.8.0 | `53be637dab201a4c9d95e1cf58040c85d71cf3c2` |
+| SymCrypt-OpenSSL 1.10.0 (Debian 1.8.0-24-gd744cf2-3) | `d744cf2e461f9964cbf681f396920960c9308aa7` |
 | jitterentropy-library | `887c9871ea110e397812ff7f3b28a6269f0a2ffc` |
 | pyelftools 0.29, used by the integrity script | `15f032b22a9b870b66d3238822724addda643ca3` |
 
@@ -71,7 +71,7 @@ This copy dereferences Bazel's input symlinks.
 ## Sealed module and debug symbols
 
 Upstream extracts debug information, strips the module, then calculates its
-integrity digest. The sealed `libsymcrypt.so.103.13.0` enters the TAR as unchanged
+integrity digest. The sealed `libsymcrypt.so.103.8.0` enters the TAR as unchanged
 data: it receives no later stripping, RPATH editing or debuglink insertion. Its
 original debug file is installed by build ID, which GNU GDB can discover directly.
 The engine and provider use the shared normal split-debug packaging rules.
@@ -82,7 +82,7 @@ same API as other native libraries.
 
 Upstream generates a random, nonsecret integrity key; clean rebuilds therefore
 need not produce identical module bytes. Build metadata uses the pinned SymCrypt
-commit timestamp (`SOURCE_DATE_EPOCH=1785966537`, matching `2026-08-05T21:48:57Z`)
+commit timestamp (`SOURCE_DATE_EPOCH=1738025055`, matching `2025-01-28T00:44:15Z`)
 so the generated `buildInfo.h` header does not vary by wall clock or host time
 zone, while `symcrypt_internal_shared.inc` retains upstream's random key.
 `//symcrypt:timestamp_test` runs the actual generator across build roots, time

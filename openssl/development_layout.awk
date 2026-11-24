@@ -13,7 +13,7 @@
             # duplicate the versioned runtime library into the dev package.
             name = $1
             sub(/^.*\//, "", name)
-            $0 = $1 " type=link mode=0777 uid=0 gid=0 time=1787585182 link=" name ".3"
+            $0 = $1 " type=link mode=0777 uid=0 gid=0 time=" mtime " link=" name ".3"
         } else if ($1 !~ ("^usr/lib/" multiarch "/((libcrypto|libssl)\\.a$|pkgconfig/|cmake/OpenSSL/)")) {
             next
         }

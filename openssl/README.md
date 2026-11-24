@@ -1,7 +1,7 @@
 # OpenSSL runtime and debug TARs
 
 This build uses the OpenSSL and Debian source versions selected by
-[`rules/openssl.mk`](../rules/openssl.mk): **3.5.7-1~deb13u2**, with SONiC's
+[`rules/openssl.mk`](../rules/openssl.mk): **3.5.7-1~deb13u3**, with SONiC's
 existing FIPS integration patches. It produces runtime and debug TARs for
 container layers.
 
@@ -9,10 +9,10 @@ container layers.
 
 [`sources.bzl`](sources.bzl) downloads the upstream source archive and Debian
 source patch archive with the SHA-256 values in Debian's published
-`openssl_3.5.7-1~deb13u2.dsc`. It applies the same order as Make:
+`openssl_3.5.7-1~deb13u3.dsc`. It applies the same order as Make:
 
 1. The two active SONiC runtime patches in `src/openssl.patch/series`.
-2. All 23 patches in Debian's source series, including its security fixes.
+2. All patches in Debian's source series, including its security fixes.
 3. The four SONiC test patches added to the Debian series by Make.
 4. A Bazel-only build-info patch that replaces the execution-root prefix in
    OpenSSL's compiler metadata with `.`. It preserves every compiler option

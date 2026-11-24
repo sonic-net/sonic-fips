@@ -61,6 +61,7 @@ declare_gnu_tools()
 
 _CORE_CACHE = {
     "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
     "Python3_EXECUTABLE": "$(execpath :python)",
     "SYMCRYPT_FIPS_BUILD": "ON",
     "SYMCRYPT_FIPS_POSTPROCESS": "ON",
@@ -84,17 +85,17 @@ cmake_variant(
     configuration = "Release",
     env = {
         "SYMCRYPT_BRANCH": "HEAD",
-        "SYMCRYPT_COMMIT_HASH": "286762b7730e2b780678f5ab11fef2b1bad639e0",
-        "SYMCRYPT_COMMIT_TIMESTAMP": "2026-08-05T21:48:57Z",
-        "SOURCE_DATE_EPOCH": "1785966537",
+        "SYMCRYPT_COMMIT_HASH": "53be637dab201a4c9d95e1cf58040c85d71cf3c2",
+        "SYMCRYPT_COMMIT_TIMESTAMP": "2025-01-28T00:44:15Z",
+        "SOURCE_DATE_EPOCH": "1738025055",
     },
     lib_name = "symcrypt",
     lib_source = "@symcrypt_src//:sources",
     out_binaries = ["symcryptunittest"],
     out_data_files = [
         "lib/libsymcrypt.so.103",
-        "lib/libsymcrypt.so.103.13.0",
-        "debug/libsymcrypt.so.103.13.0.debug",
+        "lib/libsymcrypt.so.103.8.0",
+        "debug/libsymcrypt.so.103.8.0.debug",
         "evidence/compile_commands.json",
         "evidence/CMakeCache.txt",
     ],
@@ -114,8 +115,8 @@ cmake_variant(
         output_group = output,
     )
     for source, output in [
-        ("core", "libsymcrypt.so.103.13.0"),
-        ("core", "libsymcrypt.so.103.13.0.debug"),
+        ("core", "libsymcrypt.so.103.8.0"),
+        ("core", "libsymcrypt.so.103.8.0.debug"),
         ("core", "symcryptunittest"),
         ("core", "compile_commands.json"),
         ("core", "CMakeCache.txt"),
@@ -140,8 +141,8 @@ select_file(
         src = ":built_" + output,
     )
     for output in [
-        "libsymcrypt.so.103.13.0",
-        "libsymcrypt.so.103.13.0.debug",
+        "libsymcrypt.so.103.8.0",
+        "libsymcrypt.so.103.8.0.debug",
         "symcryptunittest",
         "compile_commands.json",
         "CMakeCache.txt",
@@ -157,10 +158,10 @@ select_file(
         # The sealed core is data. Never strip, patch its RPATH, or add a
         # debuglink after upstream computes the integrity digest.
         srcs = [
-            ":packaged_libsymcrypt.so.103.13.0",
+            ":packaged_libsymcrypt.so.103.8.0",
             "@symcrypt_openssl_src//:LICENSE",
             "@symcrypt_src//:upstream/3rdparty/jitterentropy-library/LICENSE.bsd",
-            "@symcrypt_src//:upstream/LICENSE.txt",
+            "@symcrypt_src//:upstream/LICENSE",
         ],
         binaries = {
             "usr/lib/" + triplet + "/libsymcryptengine.so type=file uid=0 gid=0 mode=0755": ":built_symcryptengine.so",
@@ -168,13 +169,13 @@ select_file(
         },
         force_debug_build = True,
         mtree = [
-            "usr/lib/" + triplet + "/libsymcrypt.so.103.13.0 type=file uid=0 gid=0 mode=0755 content=$(location :packaged_libsymcrypt.so.103.13.0)",
-            "usr/lib/" + triplet + "/libsymcrypt.so.103 type=link uid=0 gid=0 link=libsymcrypt.so.103.13.0",
+            "usr/lib/" + triplet + "/libsymcrypt.so.103.8.0 type=file uid=0 gid=0 mode=0755 content=$(location :packaged_libsymcrypt.so.103.8.0)",
+            "usr/lib/" + triplet + "/libsymcrypt.so.103 type=link uid=0 gid=0 link=libsymcrypt.so.103.8.0",
             "usr/lib/" + triplet + "/libsymcrypt.so type=link uid=0 gid=0 link=libsymcrypt.so.103",
             "usr/lib/" + triplet + "/symcryptengine.so type=link uid=0 gid=0 link=libsymcryptengine.so",
             "usr/lib/" + triplet + "/engines-3/symcryptengine.so type=link uid=0 gid=0 link=../libsymcryptengine.so",
             "etc/ssl type=dir uid=0 gid=0 mode=0755",
-            "usr/share/doc/symcrypt-openssl/SymCrypt-LICENSE.txt type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/LICENSE.txt)",
+            "usr/share/doc/symcrypt-openssl/SymCrypt-LICENSE.txt type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/LICENSE)",
             "usr/share/doc/symcrypt-openssl/LICENSE type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_openssl_src//:LICENSE)",
             "usr/share/doc/symcrypt-openssl/jitterentropy-LICENSE.bsd type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/3rdparty/jitterentropy-library/LICENSE.bsd)",
         ],
@@ -189,7 +190,7 @@ select_file(
 
 sealed_runtime(
     name = "runtime",
-    core_debug = ":packaged_libsymcrypt.so.103.13.0.debug",
+    core_debug = ":packaged_libsymcrypt.so.103.8.0.debug",
     tar = select({"@platforms//cpu:" + cpu: ":components_" + cpu for cpu in [
         "x86_64",
         "aarch64",
@@ -211,11 +212,11 @@ py_test(
         ":runtime.debug_symbols",
         "//openssl:libssl3t64_pkg",
         "//openssl:openssl_pkg",
-        ":packaged_libsymcrypt.so.103.13.0",
+        ":packaged_libsymcrypt.so.103.8.0",
         ":packaged_symcryptunittest",
     ]],
     data = [
-        ":packaged_libsymcrypt.so.103.13.0",
+        ":packaged_libsymcrypt.so.103.8.0",
         ":packaged_symcryptunittest",
         ":runtime",
         ":runtime.debug_symbols",
@@ -231,6 +232,7 @@ py_test(
 # Package fields and versions come from the existing Debian recipe.
 runtime_packages(
     name = "runtime_packages.json",
+    apt_packages = {"@base_debian//libatomic1:data": "@base_debian//libatomic1:control"},
     control = "//:src/SymCrypt-OpenSSL-Debian/debian/control",
     dependencies = ["//openssl:runtime_packages.json"],
     packages = {
