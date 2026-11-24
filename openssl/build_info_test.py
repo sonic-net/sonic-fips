@@ -5,7 +5,7 @@ import sys
 
 
 def generate(root, flags, *, export_root=True):
-    env = {"LC_ALL": "C", "SOURCE_DATE_EPOCH": "1787585182"}
+    env = {"LC_ALL": "C", "SOURCE_DATE_EPOCH": sys.argv[3]}
     if export_root:
         env["EXT_BUILD_ROOT"] = root
     return subprocess.check_output(

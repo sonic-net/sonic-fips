@@ -2,6 +2,9 @@
 
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
 
+# rules/openssl.mk selects 3.5.7-1~deb13u3. Make adds one day to its changelog date.
+OPENSSL_SOURCE_DATE_EPOCH = "1790799028"
+
 _LIBDIR = select({
     "@platforms//cpu:x86_64": "usr/lib/x86_64-linux-gnu",
     "@platforms//cpu:aarch64": "usr/lib/aarch64-linux-gnu",
@@ -53,8 +56,7 @@ def openssl_build(name, **overrides):
             # Build-time Perl is declared; installed scripts use the target's Perl.
             "HASHBANGPERL": "/usr/bin/perl",
             "PERL": "$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl",
-            # Match Make's Debian changelog timestamp plus one day.
-            "SOURCE_DATE_EPOCH": "1787585182",
+            "SOURCE_DATE_EPOCH": OPENSSL_SOURCE_DATE_EPOCH,
         },
         features = ["-sanitize_pwd"],
         lib_source = "@openssl_src//:sources",

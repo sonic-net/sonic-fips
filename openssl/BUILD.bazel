@@ -4,7 +4,7 @@ load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 load("@tar.bzl//tar:mtree.bzl", "mtree_mutate", "mtree_spec")
 load("@tar.bzl//tar:tar.bzl", "tar")
-load(":build.bzl", "openssl_build")
+load(":build.bzl", "OPENSSL_SOURCE_DATE_EPOCH", "openssl_build")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -16,10 +16,11 @@ py_test(
     args = [
         "$(rootpath @sonic_build_infra//tools/build_tools:perl)",
         "$(rootpath @openssl_src//:util/mkbuildinf.pl)",
+        OPENSSL_SOURCE_DATE_EPOCH,
     ],
     data = [
-        "@sonic_build_infra//tools/build_tools:perl",
         "@openssl_src//:util/mkbuildinf.pl",
+        "@sonic_build_infra//tools/build_tools:perl",
     ],
     target_compatible_with = ["@platforms//cpu:x86_64"],
 )
@@ -173,7 +174,7 @@ mtree_spec(
 mtree_mutate(
     name = "development_layout",
     awk_script = "development_layout.awk",
-    mtime = "1787585182",
+    mtime = OPENSSL_SOURCE_DATE_EPOCH,
     mtree = ":development_files",
     owner = "0",
     ownername = "root",
@@ -212,13 +213,14 @@ py_test(
         "libssl3t64_pkg.debug_symbols",
         "openssl_pkg.debug_symbols",
         "libssl_dev_pkg",
-    ]],
+    ]] + ["$(location @openssl_src//:debian/changelog)"],
     data = [
         ":libssl3t64_pkg",
         ":libssl3t64_pkg.debug_symbols",
         ":libssl_dev_pkg",
         ":openssl_pkg",
         ":openssl_pkg.debug_symbols",
+        "@openssl_src//:debian/changelog",
     ],
 )
 
