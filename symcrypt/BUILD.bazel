@@ -232,6 +232,7 @@ py_test(
 # Package fields and versions come from the existing Debian recipe.
 runtime_packages(
     name = "runtime_packages.json",
+    apt_packages = {"@base_debian//libatomic1:data": "@base_debian//libatomic1:control"},
     control = "//:src/SymCrypt-OpenSSL-Debian/debian/control",
     dependencies = ["//openssl:runtime_packages.json"],
     packages = {
