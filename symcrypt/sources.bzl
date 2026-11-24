@@ -36,7 +36,7 @@ def _core_impl(ctx):
     visibility = ["//visibility:public"],
 )
 exports_files([
-    "upstream/LICENSE.txt",
+    "upstream/LICENSE",
     "upstream/3rdparty/jitterentropy-library/LICENSE.bsd",
     "upstream/scripts/version.py",
     "upstream/scripts/devops_utils.py",
