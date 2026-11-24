@@ -1,0 +1,13 @@
+Description: Preserve the authenticated FIPS module archives during packaging
+ The Go command verifies the ZIP bytes against lib/fips140/fips140.sum.
+ Normalizing ZIP metadata invalidates those upstream checksums.
+--- a/debian/rules
++++ b/debian/rules
+@@ -111,6 +111,7 @@
+ # because they are corrupted on purpose to test the go library.
+ override_dh_strip_nondeterminism:
+ 	dh_strip_nondeterminism \
++	--exclude=usr/share/go-$(GOVER)/lib/fips140/ \
+ 	--exclude=usr/share/go-$(GOVER)/src/image/png/testdata/invalid-trunc.png \
+ 	--exclude=usr/share/go-$(GOVER)/src/archive/zip/testdata/test-baddirsz.zip \
+ 	--exclude=usr/share/go-$(GOVER)/src/archive/zip/testdata/comment-truncated.zip
