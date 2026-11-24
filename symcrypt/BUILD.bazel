@@ -161,7 +161,7 @@ select_file(
             ":packaged_libsymcrypt.so.103.8.0",
             "@symcrypt_openssl_src//:LICENSE",
             "@symcrypt_src//:upstream/3rdparty/jitterentropy-library/LICENSE.bsd",
-            "@symcrypt_src//:upstream/LICENSE.txt",
+            "@symcrypt_src//:upstream/LICENSE",
         ],
         binaries = {
             "usr/lib/" + triplet + "/libsymcryptengine.so type=file uid=0 gid=0 mode=0755": ":built_symcryptengine.so",
@@ -175,7 +175,7 @@ select_file(
             "usr/lib/" + triplet + "/symcryptengine.so type=link uid=0 gid=0 link=libsymcryptengine.so",
             "usr/lib/" + triplet + "/engines-3/symcryptengine.so type=link uid=0 gid=0 link=../libsymcryptengine.so",
             "etc/ssl type=dir uid=0 gid=0 mode=0755",
-            "usr/share/doc/symcrypt-openssl/SymCrypt-LICENSE.txt type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/LICENSE.txt)",
+            "usr/share/doc/symcrypt-openssl/SymCrypt-LICENSE.txt type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/LICENSE)",
             "usr/share/doc/symcrypt-openssl/LICENSE type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_openssl_src//:LICENSE)",
             "usr/share/doc/symcrypt-openssl/jitterentropy-LICENSE.bsd type=file uid=0 gid=0 mode=0644 content=$(location @symcrypt_src//:upstream/3rdparty/jitterentropy-library/LICENSE.bsd)",
         ],
