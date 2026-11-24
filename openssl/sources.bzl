@@ -2,6 +2,30 @@
 
 load("//:tools/bazel/source_version.bzl", "fips_changelog")
 
+def _apply_debian_patch(ctx, patch):
+    # Bazel applies Git copy hunks to the source path. Materialize each copy
+    # and point its hunk at the destination, preserving both upstream files.
+    body = ctx.read(patch)
+    if "\ncopy from " not in body:
+        ctx.patch(patch, strip = 1)
+        return
+
+    for section in body.split("\ndiff --git ")[1:]:
+        if "\ncopy from " not in section:
+            continue
+        source = section.split("\ncopy from ", 1)[1].split("\n", 1)[0]
+        dest = section.split("\ncopy to ", 1)[1].split("\n", 1)[0]
+        if ctx.path(dest).exists:
+            fail("Debian patch copy would overwrite " + dest)
+        ctx.template(dest, ctx.path(source), executable = " 100755" in section.split("\n--- ", 1)[0])
+        headers = section.split("\n--- ", 1)[0]
+        body = body.replace("diff --git " + headers + "\n--- a/" + source,
+                            "diff --git a/" + dest + " b/" + dest + "\n--- a/" + dest)
+    normalized = ".bazel-debian-copy.patch"
+    ctx.file(normalized, body, executable = False)
+    ctx.patch(ctx.path(normalized), strip = 1)
+    ctx.delete(normalized)
+
 def _openssl_source_impl(ctx):
     ctx.download_and_extract(
         url = "https://deb.debian.org/debian/pool/main/o/openssl/openssl_3.5.7.orig.tar.gz",
@@ -22,7 +46,7 @@ def _openssl_source_impl(ctx):
             continue
         if " " in line or "\t" in line:
             fail("Unexpected Debian patch options: " + line)
-        ctx.patch(ctx.path("debian/patches/" + line), strip = 1)
+        _apply_debian_patch(ctx, ctx.path("debian/patches/" + line))
     for patch in ctx.attr.test_patches:
         ctx.patch(patch, strip = 1)
     for patch in ctx.attr.build_patches:
