@@ -31,11 +31,11 @@ add_subdirectory("${CMAKE_BINARY_DIR}/source" "${CMAKE_BINARY_DIR}/build")
 
 # Copy the sealed ELF verbatim; install(TARGETS) could adjust its RPATH after the
 # integrity digest has been computed. Keep upstream's pre-strip symbols separate.
-install(PROGRAMS "${CMAKE_BINARY_DIR}/module/generic/libsymcrypt.so.103.13.0" DESTINATION lib)
+install(PROGRAMS "${CMAKE_BINARY_DIR}/module/generic/libsymcrypt.so.103.8.0" DESTINATION lib)
 install(FILES "${CMAKE_BINARY_DIR}/module/generic/libsymcrypt.so"
               "${CMAKE_BINARY_DIR}/module/generic/libsymcrypt.so.103" DESTINATION lib)
-install(FILES "${CMAKE_BINARY_DIR}/module/generic/.debug/libsymcrypt.so.103.13.0"
-        DESTINATION debug RENAME libsymcrypt.so.103.13.0.debug)
+install(FILES "${CMAKE_BINARY_DIR}/module/generic/.debug/libsymcrypt.so.103.8.0"
+        DESTINATION debug RENAME libsymcrypt.so.103.8.0.debug)
 install(DIRECTORY "${CMAKE_BINARY_DIR}/source/inc/" DESTINATION inc)
 install(PROGRAMS "${CMAKE_BINARY_DIR}/exe/symcryptunittest" DESTINATION bin)
 install(FILES "${CMAKE_BINARY_DIR}/compile_commands.json" "${CMAKE_BINARY_DIR}/CMakeCache.txt" DESTINATION evidence)

@@ -9,8 +9,8 @@ def _openssl_source_impl(ctx):
         stripPrefix = "openssl-3.5.7",
     )
     ctx.download_and_extract(
-        url = "https://deb.debian.org/debian/pool/main/o/openssl/openssl_3.5.7-1~deb13u2.debian.tar.xz",
-        sha256 = "593a47654ead460a3b609503733f80bef552ff0802799d3b47784faacc50809f",
+        url = "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/openssl_3.5.7-1~deb13u3.debian.tar.xz",
+        sha256 = "0a427fdc3e773f4119a7dd5b36d1f0903a163cf4ea15d812bb823b251ff1cbc5",
     )
 
     # Make applies the SONiC series before dpkg applies Debian's source series.
